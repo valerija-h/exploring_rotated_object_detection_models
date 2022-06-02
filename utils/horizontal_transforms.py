@@ -4,7 +4,7 @@ import numpy as np
 import matplotlib.pyplot as plt
 import matplotlib.patches as patches
 from matplotlib.transforms import Affine2D
-from PIL.Image import FLIP_LEFT_RIGHT, FLIP_TOP_BOTTOM
+from PIL.Image import FLIP_LEFT_RIGHT, FLIP_TOP_BOTTOM, AFFINE
 import random
 
 
@@ -14,12 +14,38 @@ def re_assign_class(theta, class_mapping):
             return key
     return class_mapping[len(class_mapping)]
 
-# def recalculate_angle(theta):
-#     return (theta + np.pi / 2) % np.pi - np.pi / 2
-
 def invert_angle(theta_class, class_mapping):
     theta = (class_mapping[theta_class][0] + class_mapping[theta_class][1])/2
     return -theta
+
+
+class RandomShift(object):
+    """ Randomly translates an object
+    Args:
+    px (float): The amount the image can shift in x, y direction
+    shift (str): 'x', 'y', 'both'
+    """
+    def __init__(self, px=50, shift='both'):
+        self.px = px
+        self.shift = shift
+
+    def __call__(self, data):
+        img, target = data[0], data[1]
+        y_shift, x_shift = 0, 0
+
+        if self.shift == 'x' or self.shift == 'both':
+            x_shift = random.randint(-self.px, self.px+1)
+        if self.shift == 'y' or self.shift == 'both':
+            y_shift = random.randint(-self.px, self.px+1)
+
+        # translate image
+        translated_image = img.transform(img.size, AFFINE, (1, 0, x_shift, 0, 1, y_shift))
+        # translate bbox
+        target['boxes'][:, 0] -= x_shift
+        target['boxes'][:, 2] -= x_shift
+        target['boxes'][:, 1] -= y_shift
+        target['boxes'][:, 3] -= y_shift
+        return translated_image, target
 
 class RandomHorizontalFlip(object):
     """ Randomly horizontally flips the Image with the probability *p*
