@@ -7,18 +7,32 @@ from matplotlib.transforms import Affine2D
 from PIL.Image import FLIP_LEFT_RIGHT
 import random
 
+
+def re_assign_class(theta, class_mapping):
+    for key, value in class_mapping.items():
+        if value[0] <= theta < value[1]:
+            return key
+    return class_mapping[len(class_mapping)]
+
+# def recalculate_angle(theta):
+#     return (theta + np.pi / 2) % np.pi - np.pi / 2
+
+def invert_angle(theta_class, class_mapping):
+    theta = (class_mapping[theta_class][0] + class_mapping[theta_class][1])/2
+    return -theta
+
 class RandomHorizontalFlip(object):
     """ Randomly horizontally flips the Image with the probability *p*
     Args:
     p (float): The probability with which the image is flipped
     """
-    def __init__(self, p=0.5):
+    def __init__(self, class_mapping, p=0.5):
+        self.class_mapping = class_mapping
         self.p = p
 
     def __call__(self, data):
         img, target = data[0], data[1]
-        img_arr = np.asarray(img)
-        img_center = np.array(img_arr.shape[:2])[::-1] / 2
+        img_center = np.array((img.size[1], img.size[0]))[::-1] / 2
         img_center = np.hstack((img_center, img_center))
         if random.random() < self.p:
             img = img.transpose(FLIP_LEFT_RIGHT)
@@ -28,7 +42,8 @@ class RandomHorizontalFlip(object):
 
             target['boxes'][:, 0] -= box_w
             target['boxes'][:, 2] += box_w
-
+            for i, l in enumerate(target['labels']):
+                target['labels'][i] = re_assign_class(invert_angle(l, self.class_mapping), self.class_mapping)
         return img, target
 
 class CentreCrop(object):
@@ -128,9 +143,8 @@ class ToTensor(object):
     def __call__(self, data):
         img, target = data[0], data[1]
         new_img = torchvision.transforms.PILToTensor()(img).float()
-        new_target = target
-        new_target["boxes"] = torch.as_tensor(new_target["boxes"], dtype=torch.float32)
-        return new_img, new_target
+        target["boxes"] = torch.as_tensor(target["boxes"], dtype=torch.float32)
+        return new_img, target
 
 def visualise_transforms(data_loader, class_mapping):
     

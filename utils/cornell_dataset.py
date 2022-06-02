@@ -1,15 +1,12 @@
 import os
 import numpy as np
 from PIL import Image
-import cv2
 import random
-import math
 import torch
 from torch.utils.data import Dataset
 import matplotlib.pyplot as plt
 import matplotlib.patches as patches
 from matplotlib.transforms import Affine2D
-import shutil
 
 
 class CornellDataset(Dataset):
@@ -38,9 +35,8 @@ class CornellDataset(Dataset):
             boxes.append([xmin, ymin, xmax, ymax])
             labels.append(i[5])
 
-        # keep image, grasps and labels as np.arrays for transformations
+        # keep grasps as np.arrays for transformations
         boxes = np.asarray(boxes, dtype='float32')
-        img = np.asrray(img, dtype='float32')
         labels = np.asarray(labels, dtype='int64')
 
         # convert the rest to tensors
@@ -115,13 +111,17 @@ class CornellDataset(Dataset):
         cx, cy = (x1 + x2 + x3 + x4) / 4, (y1 + y2 + y3 + y4) / 4
         w = np.sqrt(np.power((x2 - x1), 2) + np.power((y2 - y1), 2))
         h = np.sqrt(np.power((x3 - x2), 2) + np.power((y3 - y2), 2))
-        theta = (np.arctan2((y2 - y1), (x2 - x1)) + np.pi / 2) % np.pi - np.pi / 2 # calculate theta [-pi/2, pi/2]
+        theta = (np.arctan2((y2 - y1), (x2 - x1)) + np.pi / 2) % np.pi - np.pi / 2  # calculate theta [-pi/2, pi/2]
         return round(cx, 3), round(cy, 3), round(w, 3), round(h, 3), round(theta, 5)
 
     def get_class_mapping(self):
         return self.class_list
 
+    def set_transforms(self, transforms):
+        self.transforms = transforms
+
     def visualise_sample(self, idx=None):
+        """ Visualise a data-sample without any pre-processing carried out. """
         if idx is None:
             idx = random.randint(0, len(self.img_list)-1)
         img = Image.open(self.img_list[idx]).convert("RGB")

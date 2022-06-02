@@ -205,7 +205,7 @@ def plot_prediction(image, y_pred, class_mapping):
     plt.show()
 
 # get data transforms
-def get_transforms():
+def get_transforms(class_mappings):
     # remove  T.Normalize()
     # return torchvision.transforms.Compose([
     #     T.CentreCrop(315),
@@ -213,11 +213,11 @@ def get_transforms():
     #     T.Normalize()
     # ])
     return torchvision.transforms.Compose([
-        T.CustomCrop(100, 160, 315),
-        T.RandomHorizontalFlip(0.9),
+        # T.CustomCrop(100, 160, 315),
+        T.RandomHorizontalFlip(class_mappings, 0.9),
         T.ToTensor(),
         T.Normalize(),
-        T.ZeroCentre()
+        # T.ZeroCentre()
     ])
 
 
@@ -225,7 +225,7 @@ def get_data_loaders(train_dataset, test_dataset, val_dataset):
 
     train_loader = torch.utils.data.DataLoader(
         train_dataset,
-        batch_size=2,
+        batch_size=10,
         shuffle=True,
         num_workers=4,
         collate_fn=T.collate_fn
@@ -263,8 +263,9 @@ def split_dataset(dataset):
 
 if __name__ == '__main__':
     # get dataset object and class mappings
-    dataset = CornellDataset(DATASET_PATH, transforms=get_transforms())
+    dataset = CornellDataset(DATASET_PATH)
     class_mappings = dataset.get_class_mapping()
+    dataset.set_transforms(transforms=get_transforms(class_mappings))
 
     # split dataset into training and testing
     train_dataset, test_dataset, val_dataset = split_dataset(dataset)
