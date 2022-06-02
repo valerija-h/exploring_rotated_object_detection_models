@@ -172,6 +172,7 @@ def scale_values(img_depth, new_min=0.0, new_max=255.0):
     ''' Function to scale values between 0 and 255 but only calculate min and max from cropped image'''
     cropped = img_depth[101:416, 182:497]
     img_min, img_max = np.min(cropped), np.max(cropped)
+    # img_min = 0 - try play with minimum value
 
     return np.clip((((img_depth-img_min)*(new_max - new_min))/(img_max-img_min)) + new_min, 0.0, 255.0)
 
@@ -185,7 +186,7 @@ def generate_depth_data(dataset_path):
                 img_path = rgb_path + 'r.png'  # path to image
                 depth_path = depth_path + 'd.png'
                 pcd_path = rgb_path + '.txt'  # path 
-                rgd_path = rgb_path.replace("/RGB/", "/RGD/") + 'r.png' # path to new RG-D image
+                rgd_path = rgb_path.replace("/RGB/", "/RGD/") + 'r.png'  # path to new RG-D image
 
                 # get PCD file and convert to depth image
                 with open(pcd_path, "r") as pcd_file:
@@ -216,7 +217,7 @@ def generate_depth_data(dataset_path):
                 RGD_image = Image.merge('RGB', (r, g, img_depth_file)) # create RGD image
                 RGD_image.save(rgd_path)
                 # need co-ordinates too
-                shutil.copyfile(rgb_path + 'cpos.txt', rgb_path.replace("/RGB/", "/RGD/") + 'cpos.txt')
+                # shutil.copyfile(rgb_path + 'cpos.txt', rgb_path.replace("/RGB/", "/RGD/") + 'cpos.txt')
 
 #
 # 

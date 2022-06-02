@@ -214,7 +214,8 @@ def get_transforms(class_mappings):
     # ])
     return torchvision.transforms.Compose([
         # T.CustomCrop(100, 160, 315),
-        T.RandomHorizontalFlip(class_mappings, 0.9),
+        #T.RandomHorizontalFlip(class_mappings),
+        #T.RandomVerticalFlip(class_mappings),
         T.ToTensor(),
         T.Normalize(),
         # T.ZeroCentre()

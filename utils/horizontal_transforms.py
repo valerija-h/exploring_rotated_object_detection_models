@@ -4,7 +4,7 @@ import numpy as np
 import matplotlib.pyplot as plt
 import matplotlib.patches as patches
 from matplotlib.transforms import Affine2D
-from PIL.Image import FLIP_LEFT_RIGHT
+from PIL.Image import FLIP_LEFT_RIGHT, FLIP_TOP_BOTTOM
 import random
 
 
@@ -37,14 +37,40 @@ class RandomHorizontalFlip(object):
         if random.random() < self.p:
             img = img.transpose(FLIP_LEFT_RIGHT)
             target['boxes'][:, [0, 2]] += 2 * (img_center[[0, 2]] - target['boxes'][:, [0, 2]])
-
             box_w = abs(target['boxes'][:, 0] - target['boxes'][:, 2])
 
             target['boxes'][:, 0] -= box_w
             target['boxes'][:, 2] += box_w
+
             for i, l in enumerate(target['labels']):
                 target['labels'][i] = re_assign_class(invert_angle(l, self.class_mapping), self.class_mapping)
         return img, target
+
+class RandomVerticalFlip(object):
+    """ Randomly vertically flips the Image with the probability *p*
+    Args:
+    p (float): The probability with which the image is flipped
+    """
+    def __init__(self, class_mapping, p=0.5):
+        self.class_mapping = class_mapping
+        self.p = p
+
+    def __call__(self, data):
+        img, target = data[0], data[1]
+        img_center = np.array((img.size[1], img.size[0]))[::-1] / 2
+        img_center = np.hstack((img_center, img_center))
+        if random.random() < self.p:
+            img = img.transpose(FLIP_TOP_BOTTOM)
+            target['boxes'][:, [1, 3]] += 2 * (img_center[[1, 3]] - target['boxes'][:, [1, 3]])
+
+            box_h = abs(target['boxes'][:, 1] - target['boxes'][:, 3])
+
+            target['boxes'][:, 1] -= box_h
+            target['boxes'][:, 3] += box_h
+            for i, l in enumerate(target['labels']):
+                target['labels'][i] = re_assign_class(invert_angle(l, self.class_mapping), self.class_mapping)
+        return img, target
+
 
 class CentreCrop(object):
     """Crop randomly the image in a sample.
