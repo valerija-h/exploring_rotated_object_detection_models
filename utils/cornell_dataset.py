@@ -14,12 +14,12 @@ import shutil
 
 class CornellDataset(Dataset):
     def __init__(self, dataset_path, n_classes=18, transforms=None):
-        self.dataset_path = dataset_path
-        self.transforms = transforms
-        self.n_classes = n_classes
+        self.dataset_path = dataset_path  # path to original Cornell dataset
+        self.transforms = transforms  # list of transformations to apply to image and bboxes
+        self.n_classes = n_classes  # no. of rotation classes
 
         print("Loading dataset...")
-        self.class_list = self.generate_classes()  # class id : [min_val, max_val]
+        self.class_list = self.generate_classes()  # class id : [min_theta_val, max_theta_val]
         self.img_list, self.grasp_list = self.generate_data()
         print("Dataset has been loaded.")
 
@@ -38,19 +38,23 @@ class CornellDataset(Dataset):
             boxes.append([xmin, ymin, xmax, ymax])
             labels.append(i[5])
 
-        # keep image, grasps and labels as np.arrays for transforms but convert the rest to tensors
-        boxes = torch.as_tensor(boxes, dtype=torch.float32)
-        labels = torch.as_tensor(labels, dtype=torch.int64)
+        # keep image, grasps and labels as np.arrays for transformations
+        boxes = np.asarray(boxes, dtype='float32')
+        img = np.asrray(img, dtype='float32')
+        labels = np.asarray(labels, dtype='int64')
+
+        # convert the rest to tensors
         image_id = torch.tensor([idx])
-        area = (boxes[:, 3] - boxes[:, 1]) * (boxes[:, 2] - boxes[:, 0])
+        area = torch.as_tensor((boxes[:, 3] - boxes[:, 1]) * (boxes[:, 2] - boxes[:, 0]), dtype=torch.float32)
         iscrowd = torch.zeros((len(grasps),), dtype=torch.int64)
 
-        target = {}
-        target["boxes"] = boxes
-        target["labels"] = labels
-        target["image_id"] = image_id
-        target["area"] = area
-        target["iscrowd"] = iscrowd
+        target = {
+            "boxes": boxes,
+            "labels": labels,
+            "images_id": image_id,
+            "area": area,
+            "iscrowd": iscrowd
+        }
 
         if self.transforms is not None:
             img, target = self.transforms([img, target])
@@ -60,7 +64,7 @@ class CornellDataset(Dataset):
     def __len__(self):
         return len(self.img_list)
 
-    # create a mapping between class idxs and rotation values, note class [0] = invalid proposal
+    # create a mapping between class idxs and rotation values, note class '0' = invalid proposal
     def generate_classes(self):
         class_list = {}
         rot_range = 180  # the range of rotation, ours is between -pi/2 and pi/2 (degrees)
@@ -97,7 +101,7 @@ class CornellDataset(Dataset):
                     grasp_list.append(grasps)
         return img_list, grasp_list
 
-    # assign a grasp pose rotation to a class
+    # assign a rotation class to each grasp pose rotation (theta)
     def convert_to_class(self, theta):
         for key, value in self.class_list.items():
             if value[0] <= theta < value[1]:
@@ -111,10 +115,7 @@ class CornellDataset(Dataset):
         cx, cy = (x1 + x2 + x3 + x4) / 4, (y1 + y2 + y3 + y4) / 4
         w = np.sqrt(np.power((x2 - x1), 2) + np.power((y2 - y1), 2))
         h = np.sqrt(np.power((x3 - x2), 2) + np.power((y3 - y2), 2))
-        theta = (np.arctan2((y2 - y1), (x2 - x1)) + np.pi / 2) % np.pi - np.pi / 2
-        # theta = np.arctan2((y2 - y1), x2 - x1)  # returns angle in radians
-        # if theta < 0:
-        #     theta += np.pi  # add 180 degrees if it is negative... to keep in range 0 - 180
+        theta = (np.arctan2((y2 - y1), (x2 - x1)) + np.pi / 2) % np.pi - np.pi / 2 # calculate theta [-pi/2, pi/2]
         return round(cx, 3), round(cy, 3), round(w, 3), round(h, 3), round(theta, 5)
 
     def get_class_mapping(self):
@@ -129,7 +130,6 @@ class CornellDataset(Dataset):
         fig, ax = plt.subplots()
         ax.imshow(img)
         for (x, y, w, h, t, c) in grasps:
-            #print(idx, t, t * 180/np.pi, c * 180/18-10)
             w_cos, w_sin, h_sin, h_cos = (w / 2) * np.cos(t), (w / 2) * np.sin(t), (h / 2) * np.sin(t), (h / 2) * np.cos(t)
             bl_x, bl_y, tl_x, tl_y = x - w_cos + h_sin, y - w_sin - h_cos, x - w_cos - h_sin, y - w_sin + h_cos
             br_x, br_y, tr_x, tr_y = x + w_cos + h_sin, y + w_sin - h_cos, x + w_cos - h_sin, y + w_sin + h_cos
