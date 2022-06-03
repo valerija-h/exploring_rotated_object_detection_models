@@ -288,29 +288,12 @@ class CustomCrop(object):
 
         return img, target
 
-
-class Normalize(object):
-    """ Convert image and bounding boxes to Tensors. """
-
-    def __call__(self, data):
-        img, target = data[0], data[1]
-        img /= 255.0
-        return img, target
-
-class ZeroCentre(object):
-    """ Convert image and bounding boxes to Tensors. """
-
-    def __call__(self, data):
-        img, target = data[0], data[1]
-        centered = img - img.mean(axis=(0,1,2), keepdims=True)
-        return centered, target
-
 class ToTensor(object):
     """ Convert image and bounding boxes to Tensors. """
 
     def __call__(self, data):
         img, target = data[0], data[1]
-        new_img = torchvision.transforms.PILToTensor()(img).float()
+        new_img = torchvision.transforms.ToTensor()(img).float()
         target["boxes"] = torch.as_tensor(target["boxes"], dtype=torch.float32)
         target["labels"] = torch.as_tensor(target["labels"], dtype=torch.int64)
         return new_img, target

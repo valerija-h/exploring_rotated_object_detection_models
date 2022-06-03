@@ -213,14 +213,12 @@ def get_transforms(class_mappings):
     #     T.Normalize()
     # ])
     return torchvision.transforms.Compose([
-        # T.RandomShift(),
+        T.RandomShift(),
         T.RandomRotate(class_mappings),
         T.CustomCrop(100, 160, 315),
-        # T.RandomHorizontalFlip(class_mappings),
-        # T.RandomVerticalFlip(class_mappings),
-        T.ToTensor(),
-        T.Normalize(),
-        # T.ZeroCentre()
+        T.RandomHorizontalFlip(class_mappings),
+        T.RandomVerticalFlip(class_mappings),
+        T.ToTensor()
     ])
 
 
@@ -244,7 +242,7 @@ def get_data_loaders(train_dataset, test_dataset, val_dataset):
 
     test_loader = torch.utils.data.DataLoader(
         test_dataset,
-        batch_size=10,
+        batch_size=1,
         shuffle=False,
         num_workers=4,
         collate_fn=T.collate_fn
