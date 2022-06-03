@@ -17,7 +17,6 @@ torch.manual_seed(0) # set seed for reproducibility
 '''
 TODO -
 - create evaluation() function - checks if highest grasp is IOU > 0.25 and has an angle diff of 30 degrees
-- add more data augmentation (random translation and rotation)
 - add more datasets (multi_object and Jacquard are gold standards)
 '''
 
@@ -25,7 +24,7 @@ TODO -
 DEVICE = torch.device("cuda" if torch.cuda.is_available() else "cpu")
 #DATASET_PATH = 'dataset/cornell/RGB'
 DATASET_PATH = 'dataset/cornell/RGD'
-MODEL_PATH = 'models/cornell_test-10-new-depth.pth'
+MODEL_PATH = 'models/test_02_cornell.pth'
 
 # data preprocessing parameters
 TEST_SPLIT = 0.20  # percentage of test samples from all samples
@@ -128,7 +127,7 @@ def train_network(train_data_loader, val_data_loader):
     model.to(DEVICE)
 
     # set training parameters
-    epochs = 10
+    epochs = 20
     learning_rate = 0.0001
     params = [p for p in model.parameters() if p.requires_grad]
     optimizer = torch.optim.Adam(params, lr=learning_rate)
@@ -143,8 +142,6 @@ def train_network(train_data_loader, val_data_loader):
         val_hist = val_one_epoch(model, val_data_loader, e, val_hist)
         print_losses(train_hist, e)
         print_losses(val_hist, e, prefix='val_')
-        #print(f'Epoch {e} - loss: {sum(train_hist[e]["loss"])/len(train_hist[e]["loss"]):.3f}')
-        #print(f'Epoch {e} - val_loss: {sum(val_hist[e]["loss"]) / len(val_hist[e]["loss"]):.3f}')
         end = time.time()
         print(f"Took {((end - start) / 60):.3f} minutes for epoch {e}")
     
@@ -206,18 +203,12 @@ def plot_prediction(image, y_pred, class_mapping):
 
 # get data transforms
 def get_transforms(class_mappings):
-    # remove  T.Normalize()
-    # return torchvision.transforms.Compose([
-    #     T.CentreCrop(315),
-    #     T.ToTensor(),
-    #     T.Normalize()
-    # ])
     return torchvision.transforms.Compose([
-        T.RandomShift(),
-        T.RandomRotate(class_mappings),
+        #T.RandomShift(),
+        #T.RandomRotate(class_mappings),
         T.CustomCrop(100, 160, 315),
-        T.RandomHorizontalFlip(class_mappings),
-        T.RandomVerticalFlip(class_mappings),
+        #T.RandomHorizontalFlip(class_mappings),
+        #T.RandomVerticalFlip(class_mappings),
         T.ToTensor()
     ])
 
@@ -226,7 +217,7 @@ def get_data_loaders(train_dataset, test_dataset, val_dataset):
 
     train_loader = torch.utils.data.DataLoader(
         train_dataset,
-        batch_size=10,
+        batch_size=8,
         shuffle=True,
         num_workers=4,
         collate_fn=T.collate_fn
@@ -277,11 +268,11 @@ if __name__ == '__main__':
     print(f'[INFO] test dataset has {len(test_dataset)} samples.')
 
     # if the model_path exists - evaluate it, otherwise train a new model and save it to model_path
-    # if not os.path.exists(MODEL_PATH):
-    #     train_network(train_loader, val_loader)
-    #
+    if not os.path.exists(MODEL_PATH):
+        train_network(train_loader, val_loader)
+
     # evaluate model
-    # evaluate_network(test_loader, visualize=True)
+    evaluate_network(test_loader, visualize=True)
 
     # visualize a transformed example
-    T.visualise_transforms(test_loader, class_mappings)
+    # T.visualise_transforms(test_loader, class_mappings)
