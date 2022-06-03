@@ -7,13 +7,15 @@ from torch.utils.data import Dataset
 import matplotlib.pyplot as plt
 import matplotlib.patches as patches
 from matplotlib.transforms import Affine2D
+import skimage.io
 
 
 class JacquardDataset(Dataset):
-    def __init__(self, dataset_path, n_classes=18, transforms=None):
+    def __init__(self, dataset_path, n_classes=18, transforms=None, rgd=False):
         self.dataset_path = dataset_path  # path to original Cornell dataset
         self.transforms = transforms  # list of transformations to apply to image and bboxes
         self.n_classes = n_classes  # no. of rotation classes
+        self.rgd = rgd
 
         print("Loading dataset...")
         self.class_list = self.generate_classes()  # class id : [min_theta_val, max_theta_val]
@@ -23,7 +25,16 @@ class JacquardDataset(Dataset):
     def __getitem__(self, idx):
         img_path = self.img_list[idx]  # the path to the image
         grasps = self.grasp_list[idx]  # the grasps of image in 5D pose format a.k.a (x, y, w, h, theta, theta_class)
+
         img = Image.open(img_path).convert("RGB")
+
+        # open as RGD image
+        if self.rgd:
+            # open depth image and convert to [0, 255] format
+            depth_path = self.img_list[idx].replace("_RGB.png", "_perfect_depth.tiff")
+            depth = Image.fromarray(self.scale_values(skimage.io.imread(depth_path))).convert("L")
+            r, g, b = img.split()
+            img = Image.merge('RGB', (r, g, depth))  # create RGD image
 
         # convert grasp to bbox VOC format a.k.a [x_min, y_min, x_max, y_max]
         boxes, labels = [], []
@@ -102,15 +113,32 @@ class JacquardDataset(Dataset):
                 return key
         return self.n_classes
 
+    def scale_values(self, img_depth, new_min=0.0, new_max=255.0):
+        ''' Function to scale values between 0 and 255 but only calculate min and max from cropped image'''
+        img_min, img_max = np.min(img_depth), np.max(img_depth)
+        # img_min = 0 - try play with minimum value
+
+        return (((img_depth - img_min) * (new_max - new_min)) / (img_max - img_min)) + new_min
+
+
     def visualise_sample(self, idx=None):
         """ Visualise a data-sample without any pre-processing carried out. """
         if idx is None:
             idx = random.randint(0, len(self.img_list) - 1)
+
         img = Image.open(self.img_list[idx]).convert("RGB")
         grasps = self.grasp_list[idx]
 
+        # open as RGD image
+        if self.rgd:
+            # open depth image and convert to [0, 255] format
+            depth_path = self.img_list[idx].replace("_RGB.png", "_perfect_depth.tiff")
+            depth = Image.fromarray(self.scale_values(skimage.io.imread(depth_path))).convert("L")
+            r, g, b = img.split()
+            img = Image.merge('RGB', (r, g, depth))  # create RGD image
+
         fig, ax = plt.subplots()
-        ax.imshow(img)
+        plt.imshow(img)
         for (x, y, w, h, t, c) in grasps:
             w_cos, w_sin, h_sin, h_cos = (w / 2) * np.cos(t), (w / 2) * np.sin(t), (h / 2) * np.sin(t), (
                         h / 2) * np.cos(t)
@@ -122,11 +150,10 @@ class JacquardDataset(Dataset):
                                      transform=Affine2D().rotate_around(*(x, y), t) + ax.transData)
             ax.add_patch(rect)
 
-        plt.imshow(img)
         plt.show()
 
 
 if __name__ == '__main__':
     dataset_path = '../dataset/jacquard'  # cornell dataset folder
-    dataset = JacquardDataset(dataset_path)
+    dataset = JacquardDataset(dataset_path, rgd=True)
     dataset.visualise_sample()
