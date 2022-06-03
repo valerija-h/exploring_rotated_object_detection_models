@@ -25,7 +25,7 @@ TODO -
 DEVICE = torch.device("cuda" if torch.cuda.is_available() else "cpu")
 #DATASET_PATH = 'dataset/cornell/RGB'
 DATASET_PATH = 'dataset/cornell/RGD'
-MODEL_PATH = 'models/cornell_test-10-new-depth-zc.pth'
+MODEL_PATH = 'models/cornell_test-10-new-depth.pth'
 
 # data preprocessing parameters
 TEST_SPLIT = 0.20  # percentage of test samples from all samples
@@ -213,10 +213,11 @@ def get_transforms(class_mappings):
     #     T.Normalize()
     # ])
     return torchvision.transforms.Compose([
-        T.RandomShift(),
+        # T.RandomShift(),
+        T.RandomRotate(class_mappings),
         T.CustomCrop(100, 160, 315),
-        T.RandomHorizontalFlip(class_mappings),
-        T.RandomVerticalFlip(class_mappings),
+        # T.RandomHorizontalFlip(class_mappings),
+        # T.RandomVerticalFlip(class_mappings),
         T.ToTensor(),
         T.Normalize(),
         # T.ZeroCentre()
@@ -243,7 +244,7 @@ def get_data_loaders(train_dataset, test_dataset, val_dataset):
 
     test_loader = torch.utils.data.DataLoader(
         test_dataset,
-        batch_size=1,
+        batch_size=10,
         shuffle=False,
         num_workers=4,
         collate_fn=T.collate_fn
@@ -281,8 +282,8 @@ if __name__ == '__main__':
     # if not os.path.exists(MODEL_PATH):
     #     train_network(train_loader, val_loader)
     #
-    # # evaluate model
+    # evaluate model
     # evaluate_network(test_loader, visualize=True)
 
     # visualize a transformed example
-    T.visualise_transforms(train_loader, class_mappings)
+    T.visualise_transforms(test_loader, class_mappings)
