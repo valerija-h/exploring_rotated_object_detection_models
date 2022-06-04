@@ -47,7 +47,7 @@ class CornellDataset(Dataset):
         target = {
             "boxes": boxes,
             "labels": labels,
-            "images_id": image_id,
+            "image_id": image_id,
             "area": area,
             "iscrowd": iscrowd
         }
@@ -113,6 +113,9 @@ class CornellDataset(Dataset):
         h = np.sqrt(np.power((x3 - x2), 2) + np.power((y3 - y2), 2))
         theta = (np.arctan2((y2 - y1), (x2 - x1)) + np.pi / 2) % np.pi - np.pi / 2  # calculate theta [-pi/2, pi/2]
         return round(cx, 3), round(cy, 3), round(w, 3), round(h, 3), round(theta, 5)
+
+    def get_img_path(self, idx):
+        return self.img_list[idx]
 
     def get_class_mapping(self):
         return self.class_list
