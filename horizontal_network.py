@@ -6,6 +6,7 @@ from torch.utils.data import DataLoader
 from utils.cornell_dataset import CornellDataset
 from utils.ocid_dataset import OCIDDataset
 from utils.jacquard_dataset import JacquardDataset
+from shapely.geometry import Polygon
 
 from utils import horizontal_transforms as T
 from tqdm.auto import tqdm
@@ -26,8 +27,8 @@ TODO -
 # set the device used to train the model
 DEVICE = torch.device("cuda" if torch.cuda.is_available() else "cpu")
 #DATASET_PATH = 'dataset/cornell/RGB'
-# DATASET_PATH = 'dataset/cornell/RGD'
-DATASET_PATH = 'dataset/ocid'
+DATASET_PATH = 'dataset/cornell/RGD'
+#DATASET_PATH = 'dataset/ocid'
 MODEL_PATH = 'models/test_02_cornell.pth'
 
 # data preprocessing parameters
@@ -151,6 +152,43 @@ def train_network(train_data_loader, val_data_loader):
     
     torch.save(model.state_dict(), f"{MODEL_PATH}") # save model
 
+def get_points(box, t):
+    xmin, ymin, xmax, ymax = box
+    w, h = xmax - xmin, ymax - ymin
+    x, y = xmax - (w / 2), ymax - (h / 2)
+
+    w_cos, w_sin, h_sin, h_cos = (w / 2) * np.cos(t), (w / 2) * np.sin(t), (h / 2) * np.sin(t), (
+            h / 2) * np.cos(t)
+    bl_x, bl_y, tl_x, tl_y = x - w_cos + h_sin, y - w_sin - h_cos, x - w_cos - h_sin, y - w_sin + h_cos
+    br_x, br_y, tr_x, tr_y = x + w_cos + h_sin, y + w_sin - h_cos, x + w_cos - h_sin, y + w_sin + h_cos
+    return (tl_x, tl_y), (bl_x, bl_y), (br_x, br_y), (tr_x, tr_y)
+
+def calc_grasp_metric(y_pred, y_test, img):
+    # get the best bbox pred, theta pred
+    bbox_pred = y_pred[0]['boxes'][0]
+    class_pred = y_pred[0]['labels'][0].item()
+    theta_pred = (class_mappings[class_pred][0] + class_mappings[class_pred][1]) / 2
+
+    for i in range(len(y_test[0]['boxes'])):
+        gt_class = y_test[0]['labels'][i].item()
+        gt_theta = (class_mappings[gt_class][0] + class_mappings[gt_class][1]) / 2
+        gt_bbox = y_test[0]['boxes'][i]
+
+        # check if theta is within 30 degrees (0.523599 radians)
+        if np.abs(gt_theta - theta_pred) < 0.523599 or (np.abs(np.abs(gt_theta - theta_pred) - np.pi)) < 0.523599:
+            # now check if IOU > 0.25
+            gt_grasp = Polygon(get_points(gt_bbox, gt_theta))
+            pred_grasp = Polygon(get_points(bbox_pred, theta_pred))
+
+            plt.imshow(torchvision.transforms.ToPILImage()(img))
+            x, y = gt_grasp.exterior.xy
+            plt.plot(x, y, 'b')
+            x, y = pred_grasp.exterior.xy
+            plt.plot(x, y, 'r')
+
+        plt.show()
+
+
 def evaluate_network(test_data_loader, visualize=False):
     # load model
     model = create_model().to(DEVICE)
@@ -169,9 +207,12 @@ def evaluate_network(test_data_loader, visualize=False):
         y_pred = model(x_test)
         y_pred = [{k: v.to(device) for k, v in t.items()} for t in y_pred]
 
+        # warning this will only work with BS of 1 for now
+        is_correct = calc_grasp_metric(y_pred, y_test, images[0])
+
         if visualize == True:
             plot_prediction(images[0], y_pred[0], class_mappings)
-            print(y_pred)
+            #print(y_pred)
             #print(i)
             #print(y_pred)
             
@@ -268,12 +309,13 @@ def split_dataset(dataset):
                                                                              generator=torch.Generator().manual_seed(SEED_SPLIT))
     return train_dataset, test_dataset, val_dataset
 
+
 if __name__ == '__main__':
     # get dataset object and class mappings
-    # dataset = CornellDataset(DATASET_PATH)
-    dataset = OCIDDataset(DATASET_PATH, rgd=True)
+    dataset = CornellDataset(DATASET_PATH)
+    # dataset = OCIDDataset(DATASET_PATH, rgd=True)
     class_mappings = dataset.get_class_mapping()
-    dataset.set_transforms(transforms=get_transforms_OCID(class_mappings))
+    dataset.set_transforms(transforms=get_transforms(class_mappings))
 
     # split dataset into training and testing
     train_dataset, test_dataset, val_dataset = split_dataset(dataset)
@@ -288,7 +330,7 @@ if __name__ == '__main__':
     #     train_network(train_loader, val_loader)
     #
     # # evaluate model
-    # evaluate_network(test_loader, visualize=True)
+    evaluate_network(test_loader, visualize=True)
 
     #visualize a transformed example
-    T.visualise_transforms(test_loader, class_mappings)
+    #T.visualise_transforms(test_loader, class_mappings)

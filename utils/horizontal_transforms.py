@@ -305,7 +305,7 @@ def visualise_transforms(data_loader, class_mapping):
     for i in range(len(images)):
         # convert the image to
         fig, ax = plt.subplots()
-        image = image = torchvision.transforms.ToPILImage()(images[i])
+        image = torchvision.transforms.ToPILImage()(images[i])
         ax.imshow(image)
         for b, (xmin, ymin, xmax, ymax) in enumerate(targets[i]['boxes']):
             w, h = xmax-xmin, ymax-ymin
