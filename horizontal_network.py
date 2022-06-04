@@ -180,13 +180,17 @@ def calc_grasp_metric(y_pred, y_test, img):
             gt_grasp = Polygon(get_points(gt_bbox, gt_theta))
             pred_grasp = Polygon(get_points(bbox_pred, theta_pred))
 
-            plt.imshow(torchvision.transforms.ToPILImage()(img))
-            x, y = gt_grasp.exterior.xy
-            plt.plot(x, y, 'b')
-            x, y = pred_grasp.exterior.xy
-            plt.plot(x, y, 'r')
-
-        plt.show()
+            intersection = gt_grasp.intersection(pred_grasp).area / gt_grasp.union(pred_grasp).area
+            if intersection > 0.25:
+                plt.imshow(torchvision.transforms.ToPILImage()(img))
+                x, y = gt_grasp.exterior.xy
+                plt.plot(x, y, 'b')
+                x, y = pred_grasp.exterior.xy
+                plt.plot(x, y, 'r')
+                plt.title(f'IOU: {intersection}')
+                plt.show()
+                return True
+    return False  # if metrics aren't met
 
 
 def evaluate_network(test_data_loader, visualize=False):
