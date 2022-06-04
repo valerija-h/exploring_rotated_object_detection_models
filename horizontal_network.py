@@ -4,6 +4,9 @@ import torchvision
 import time
 from torch.utils.data import DataLoader
 from utils.cornell_dataset import CornellDataset
+from utils.ocid_dataset import OCIDDataset
+from utils.jacquard_dataset import JacquardDataset
+
 from utils import horizontal_transforms as T
 from tqdm.auto import tqdm
 
@@ -23,7 +26,8 @@ TODO -
 # set the device used to train the model
 DEVICE = torch.device("cuda" if torch.cuda.is_available() else "cpu")
 #DATASET_PATH = 'dataset/cornell/RGB'
-DATASET_PATH = 'dataset/cornell/RGD'
+# DATASET_PATH = 'dataset/cornell/RGD'
+DATASET_PATH = 'dataset/ocid'
 MODEL_PATH = 'models/test_02_cornell.pth'
 
 # data preprocessing parameters
@@ -212,6 +216,17 @@ def get_transforms(class_mappings):
         T.ToTensor()
     ])
 
+# get data transforms
+def get_transforms_OCID(class_mappings):
+    return torchvision.transforms.Compose([
+        #T.RandomShift(),
+        #T.RandomRotate(class_mappings),
+        T.CustomCrop(10, 10, (590, 460)),
+        #T.RandomHorizontalFlip(class_mappings),
+        #T.RandomVerticalFlip(class_mappings),
+        T.ToTensor()
+    ])
+
 
 def get_data_loaders(train_dataset, test_dataset, val_dataset):
 
@@ -255,9 +270,10 @@ def split_dataset(dataset):
 
 if __name__ == '__main__':
     # get dataset object and class mappings
-    dataset = CornellDataset(DATASET_PATH)
+    # dataset = CornellDataset(DATASET_PATH)
+    dataset = OCIDDataset(DATASET_PATH, rgd=True)
     class_mappings = dataset.get_class_mapping()
-    dataset.set_transforms(transforms=get_transforms(class_mappings))
+    dataset.set_transforms(transforms=get_transforms_OCID(class_mappings))
 
     # split dataset into training and testing
     train_dataset, test_dataset, val_dataset = split_dataset(dataset)
@@ -267,12 +283,12 @@ if __name__ == '__main__':
     print(f'[INFO] talidation dataset has {len(val_dataset)} samples.')
     print(f'[INFO] test dataset has {len(test_dataset)} samples.')
 
-    # if the model_path exists - evaluate it, otherwise train a new model and save it to model_path
-    if not os.path.exists(MODEL_PATH):
-        train_network(train_loader, val_loader)
+    # # if the model_path exists - evaluate it, otherwise train a new model and save it to model_path
+    # if not os.path.exists(MODEL_PATH):
+    #     train_network(train_loader, val_loader)
+    #
+    # # evaluate model
+    # evaluate_network(test_loader, visualize=True)
 
-    # evaluate model
-    evaluate_network(test_loader, visualize=True)
-
-    # visualize a transformed example
-    # T.visualise_transforms(test_loader, class_mappings)
+    #visualize a transformed example
+    T.visualise_transforms(test_loader, class_mappings)

@@ -8,9 +8,10 @@ import matplotlib.pyplot as plt
 import matplotlib.patches as patches
 from matplotlib.transforms import Affine2D
 import skimage.io
+from pathlib import Path
 
 
-class JacquardDataset(Dataset):
+class OCIDDataset(Dataset):
     def __init__(self, dataset_path, n_classes=18, transforms=None, rgd=False):
         self.dataset_path = dataset_path  # path to original Cornell dataset
         self.transforms = transforms  # list of transformations to apply to image and bboxes
@@ -22,12 +23,6 @@ class JacquardDataset(Dataset):
         self.img_list, self.grasp_list = self.generate_data()
         print("Dataset has been loaded.")
 
-    def get_class_mapping(self):
-        return self.class_list
-
-    def set_transforms(self, transforms):
-        self.transforms = transforms
-
     def __getitem__(self, idx):
         img_path = self.img_list[idx]  # the path to the image
         grasps = self.grasp_list[idx]  # the grasps of image in 5D pose format a.k.a (x, y, w, h, theta, theta_class)
@@ -37,8 +32,8 @@ class JacquardDataset(Dataset):
         # open as RGD image
         if self.rgd:
             # open depth image and convert to [0, 255] format
-            depth_path = self.img_list[idx].replace("_RGB.png", "_perfect_depth.tiff")
-            depth = Image.fromarray(self.scale_values(skimage.io.imread(depth_path))).convert("L")
+            depth_path = self.img_list[idx].replace("rgb", "depth")
+            depth = Image.fromarray(self.scale_values(np.array(Image.open(depth_path)))).convert('L')
             r, g, b = img.split()
             img = Image.merge('RGB', (r, g, depth))  # create RGD image
 
@@ -77,6 +72,12 @@ class JacquardDataset(Dataset):
     def __len__(self):
         return len(self.img_list)
 
+    def set_transforms(self, transforms):
+        self.transforms = transforms
+
+    def get_class_mapping(self):
+        return self.class_list
+
     # create a mapping between class idxs and rotation values, note class '0' = invalid proposal
     def generate_classes(self):
         class_list = {}
@@ -93,24 +94,38 @@ class JacquardDataset(Dataset):
         grasp_list = []
         for subdir, dirs, files in os.walk(self.dataset_path):
             for f in files:
-                if f.endswith('_RGB.png'):
-                    sample_name = os.path.splitext(f)[0][:-(len('_RGB'))]
+                if "rgb" in subdir and f.endswith('.png'):
+                    sample_name = os.path.splitext(f)[0]
                     path = os.path.join(subdir, sample_name)
-                    annot_path = path + '_grasps.txt'
-                    img_path = path + '_RGB.png'
+                    annot_path = path.replace("rgb", "Annotations") + '.txt'
+                    img_path = path + '.png'
 
-                    grasps = []
+                    grasps = []  # stores all grasp poses and their class in current image
                     with open(annot_path) as file:
                         lines = file.readlines()
+                        grasp_rect = []  # to store the vertices of a single grasp rectangle
                         for i, l in enumerate(lines):
-                            ls = l.strip().split(';')
-                            x, y, w, h, t = float(ls[0]), float(ls[1]), float(ls[3]), float(ls[4]), float(ls[2])
-                            t = t * (np.pi / 180)  # convert to radians
-                            c = self.convert_to_class(t)
-                            grasps.append([x, y, w, h, t, c])
+                            # parse the (x,y) co-ordinates of each grasp box vertice
+                            xy = l.strip().split()
+                            grasp_rect.append((float(xy[0]), float(xy[1])))
+                            if (i + 1) % 4 == 0:
+                                if not np.isnan(grasp_rect).any():
+                                    cx, cy, w, h, theta = self.convert_to_5D_pose(grasp_rect)
+                                    grasps.append((cx, cy, w, h, theta, self.convert_to_class(theta)))
+                                    grasp_rect = []  # reset current grasp rectangle after 4 vertices have been read
                     img_list.append(img_path)
                     grasp_list.append(grasps)
         return img_list, grasp_list
+
+    # link to calculate cx, cy, w, h, theta after - https://www.sciencedirect.com/science/article/pii/S0921889021000427
+    def convert_to_5D_pose(self, bbox):
+        x1, x2, x3, x4 = bbox[0][0], bbox[1][0], bbox[2][0], bbox[3][0]
+        y1, y2, y3, y4 = bbox[0][1], bbox[1][1], bbox[2][1], bbox[3][1]
+        cx, cy = (x1 + x2 + x3 + x4) / 4, (y1 + y2 + y3 + y4) / 4
+        w = np.sqrt(np.power((x2 - x1), 2) + np.power((y2 - y1), 2))
+        h = np.sqrt(np.power((x3 - x2), 2) + np.power((y3 - y2), 2))
+        theta = (np.arctan2((y2 - y1), (x2 - x1)) + np.pi / 2) % np.pi - np.pi / 2  # calculate theta [-pi/2, pi/2]
+        return round(cx, 3), round(cy, 3), round(w, 3), round(h, 3), round(theta, 5)
 
     # assign a rotation class to each grasp pose rotation (theta)
     def convert_to_class(self, theta):
@@ -126,7 +141,6 @@ class JacquardDataset(Dataset):
 
         return (((img_depth - img_min) * (new_max - new_min)) / (img_max - img_min)) + new_min
 
-
     def visualise_sample(self, idx=None):
         """ Visualise a data-sample without any pre-processing carried out. """
         if idx is None:
@@ -138,8 +152,8 @@ class JacquardDataset(Dataset):
         # open as RGD image
         if self.rgd:
             # open depth image and convert to [0, 255] format
-            depth_path = self.img_list[idx].replace("_RGB.png", "_perfect_depth.tiff")
-            depth = Image.fromarray(self.scale_values(skimage.io.imread(depth_path))).convert("L")
+            depth_path = self.img_list[idx].replace("rgb", "depth")
+            depth = Image.fromarray(self.scale_values(np.array(Image.open(depth_path)))).convert('L')
             r, g, b = img.split()
             img = Image.merge('RGB', (r, g, depth))  # create RGD image
 
@@ -147,7 +161,7 @@ class JacquardDataset(Dataset):
         plt.imshow(img)
         for (x, y, w, h, t, c) in grasps:
             w_cos, w_sin, h_sin, h_cos = (w / 2) * np.cos(t), (w / 2) * np.sin(t), (h / 2) * np.sin(t), (
-                        h / 2) * np.cos(t)
+                    h / 2) * np.cos(t)
             bl_x, bl_y, tl_x, tl_y = x - w_cos + h_sin, y - w_sin - h_cos, x - w_cos - h_sin, y - w_sin + h_cos
             br_x, br_y, tr_x, tr_y = x + w_cos + h_sin, y + w_sin - h_cos, x + w_cos - h_sin, y + w_sin + h_cos
             plt.plot([bl_x, tl_x], [bl_y, tl_y], c='black')
@@ -160,6 +174,6 @@ class JacquardDataset(Dataset):
 
 
 if __name__ == '__main__':
-    dataset_path = '../dataset/jacquard'  # cornell dataset folder
-    dataset = JacquardDataset(dataset_path, rgd=True)
+    dataset_path = '../dataset/ocid'  # cornell dataset folder
+    dataset = OCIDDataset(dataset_path, rgd=True)
     dataset.visualise_sample()
