@@ -10,19 +10,26 @@ import matplotlib.pyplot as plt
 import matplotlib.patches as patches
 from matplotlib.transforms import Affine2D
 import cv2
+from tqdm import tqdm
 
 class CornellDataset(Dataset):
-    def __init__(self, cornell_dataset_path, n_classes=18, transforms=None, depth_path=None):
+    def __init__(self, cornell_dataset_path, n_classes=18, transforms=None, depth_path=None, format="RGB"):
         """ Initialises a dataset object of the Cornell Grasping dataset.
            :param cornell_dataset_path: (str) path to Cornell Grasping dataset root directory.
            :param n_classes: (int) number of rotation classes
            :param transforms: (list) list of transformations to apply to images and grasps.
            :param depth_path: (str) path to the depth dataset.
+           :param img_format: (str) specify whether you want "RGB" or "RGD" images.
         """
         self.dataset_path = cornell_dataset_path
         self.transforms = transforms
         self.n_classes = n_classes
+        self.format = format
+
+        # if no depth path was specified, assume it is in the original Cornell Grasping dataset by default
         self.depth_path = depth_path
+        if self.depth_path is None:
+            self.depth_path = os.path.join(self.dataset_path, 'depth')
 
         print("[INFO] Loading Cornell Grasping dataset...")
         self.class_list = self.generate_classes()  # creates a mapping of rotation class idxs to theta values
@@ -34,6 +41,13 @@ class CornellDataset(Dataset):
         img_path = self.img_list[idx]  # the path to the image
         grasps = self.grasp_list[idx]  # the grasps of image in 5D pose format a.k.a (x, y, w, h, theta, theta_class)
         img = Image.open(img_path).convert("RGB")
+
+        # if RGD format has been selected
+        if self.format == "RGD":
+            depth_path = os.path.join(self.depth_path, os.path.splitext(os.path.basename(img_path))[0].rstrip('r') + 'd.png')
+            depth_img = Image.open(depth_path).convert('L')
+            r, g, b = img.split()
+            img = Image.merge('RGB', (r, g, depth_img))  # create RGD image
 
         # convert grasp to bbox VOC format a.k.a [x_min, y_min, x_max, y_max]
         boxes, labels = [], []
@@ -94,7 +108,7 @@ class CornellDataset(Dataset):
         img_list, grasp_list = [], []
         for subdir, dirs, files in os.walk(self.dataset_path):
             for f in files:
-                if f.endswith('.png'):
+                if f.endswith('r.png'):
                     sample_name = os.path.splitext(f)[0].rstrip('r')  # get unique name of sample
                     path = os.path.join(subdir, sample_name)  # path to sample
                     img_path = path + 'r.png'  # path to image
@@ -161,6 +175,10 @@ class CornellDataset(Dataset):
 
     def generate_depth_data(self):
         """ Generates a folder of depth images for each RGB image in the dataset. """
+        # create a depth folder if one doesn't exist
+        if not os.path.isdir(self.depth_path):
+            os.mkdir(self.depth_path)
+        print(f"[INFO] Generating Cornell Grasping depth images in the folder: {self.depth_path}")
 
         def inpaint(img, missing_value=0):
             """ Inpaint missing values in depth image. Note this was taken directly from
@@ -180,23 +198,12 @@ class CornellDataset(Dataset):
             img_min, img_max = np.min(cropped), np.max(cropped)
             return np.clip((((img - img_min) * (new_max - new_min)) / (img_max - img_min)) + new_min, 0.0, 255.0)
 
-        # if no depth path was specified, assume it is in the original Cornell Grasping dataset
-        new_depth_dir = self.depth_path
-        if self.depth_path is None:
-            new_depth_dir = os.path.join(self.dataset_path, 'depth')
-
-        print(f"[INFO] Generating depth data in the folder: {new_depth_dir}")
-
-        # create a depth folder if one doesn't exist
-        if not os.path.isdir(new_depth_dir):
-            os.mkdir(new_depth_dir)
-
         # creates a depth image for each sample in the dataset in the "new_depth_path" folder
-        for img_path in self.img_list:
+        for img_path in tqdm(self.img_list, desc="Depth files generated"):
             dir_path = os.path.dirname(img_path)
             sample_name = os.path.splitext(os.path.basename(img_path))[0].rstrip('r')
             pcd_path = os.path.join(dir_path, sample_name + '.txt')  # path to point cloud data
-            depth_path = os.path.join(new_depth_dir, sample_name + 'd.png')
+            depth_path = os.path.join(self.depth_path, sample_name + 'd.png')
 
             with open(pcd_path, "r") as pcd_file:
                 lines = [line.strip().split(" ") for line in pcd_file.readlines()]
@@ -220,6 +227,7 @@ class CornellDataset(Dataset):
             # save depth image
             img_depth_file = Image.fromarray(img_depth).convert('L')
             img_depth_file.save(depth_path)
+        print(f"[INFO] Finished generating depth data.")
 
     def visualise_sample(self, idx=None, preprocessed=False):
         """ Visualise a data-sample with or without any pre-processing.
@@ -254,7 +262,7 @@ class CornellDataset(Dataset):
 
             for (x, y, w, h, t, c) in grasps:
                 plot_grasp(ax, (x, y, w, h, t))
-            plt.title("Original sample from the Cornell Grasping dataset.")
+            plt.title("Original sample from the Cornell Grasping dataset")
         else:
             img, targets = self.__getitem__(idx)
             if torch.is_tensor(img):
@@ -266,12 +274,14 @@ class CornellDataset(Dataset):
                 t_range = self.class_list[targets['labels'][b].item()]  # range of theta values [min_t, max_t]
                 t = (t_range[0] + t_range[1]) / 2
                 plot_grasp(ax, (x, y, w, h, t))
-            plt.title("Pre-processed sample from the Cornell Grasping dataset.")
+            plt.title("Pre-processed sample from the Cornell Grasping dataset")
         plt.imshow(img)
         plt.show()
 
 if __name__ == '__main__':
     dataset_path = '../dataset/cornell/'
-    dataset = CornellDataset(dataset_path)
-    dataset.visualise_sample(587)
-    dataset.generate_depth_data()
+    dataset = CornellDataset(dataset_path, format="RGD")
+    dataset.visualise_sample()
+
+    # OPTIONAL - generate depth data (if needed)
+    # dataset.generate_depth_data()
