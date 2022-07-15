@@ -1,5 +1,4 @@
-''' Convert the Dataset into DOTA format
-'''
+''' Convert the Dataset into DOTA format'''
 
 import os
 import torch
@@ -11,7 +10,7 @@ from utils.ocid_dataset import OCIDDataset
 from utils.jacquard_dataset import JacquardDataset
 from shapely.geometry import Polygon
 
-from utils import horizontal_transforms as T
+from utils import transforms as T
 from tqdm.auto import tqdm
 
 import matplotlib.pyplot as plt
