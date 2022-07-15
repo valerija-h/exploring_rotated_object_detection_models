@@ -58,7 +58,7 @@ class RandomRotate(object):
         # get corners of the grasp rects and apply a rotation matrix to get rotated (i.e. transformed) corner points
         corners = self.get_corners(bboxes, theta_classes)
         rotated_bboxes = self.rotate_box(corners, angle, cx, cy)
-        # recalculate new rotation classes and new co-ords in VOC format
+        # recalculate new theta and co-ords in VOC format and assign rotation class
         new_bboxes, thetas = self.re_calculate_bbox(rotated_bboxes)
         target['boxes'] = np.asarray(new_bboxes, dtype='float32')
         target['labels'] = np.asarray([re_assign_class(t, self.class_mapping) for t in thetas], dtype='int64')
@@ -126,12 +126,10 @@ class RandomRotate(object):
 
 
 class RandomShift(object):
-    """ Randomly translates an object
-    Args:
-    px (float): The amount the image can shift in x, y direction
-    shift (str): 'x', 'y', 'both'
+    """ Applies a random horizontal or vertical shift to the image.
+      :param px: (float) the max amount of pixels the image can shift.
+      :param shift: (str) specify whether to shift horizontally (x), vertically (y) or both.
     """
-
     def __init__(self, px=50, shift='both'):
         self.px = px
         self.shift = shift
@@ -139,15 +137,14 @@ class RandomShift(object):
     def __call__(self, data):
         img, target = data[0], data[1]
         y_shift, x_shift = 0, 0
-
+        # choose a random amount of pixels to translate in chosen directions
         if self.shift == 'x' or self.shift == 'both':
             x_shift = random.randint(-self.px, self.px + 1)
         if self.shift == 'y' or self.shift == 'both':
             y_shift = random.randint(-self.px, self.px + 1)
-
-        # translate image
+        # translate image by num. of pixels
         translated_image = img.transform(img.size, AFFINE, (1, 0, x_shift, 0, 1, y_shift))
-        # translate bbox
+        # translate bboxes by num. of pixels
         target['boxes'][:, 0] -= x_shift
         target['boxes'][:, 2] -= x_shift
         target['boxes'][:, 1] -= y_shift
