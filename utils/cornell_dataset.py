@@ -1,19 +1,20 @@
-import os
-import numpy as np
-from PIL import Image
-import random
-import torch
 import math
-import torchvision
-from torch.utils.data import Dataset
-import matplotlib.pyplot as plt
-import matplotlib.patches as patches
-from matplotlib.transforms import Affine2D
+import os
+import random
 import cv2
+import matplotlib.patches as patches
+import matplotlib.pyplot as plt
+import numpy as np
+import torch
+import torchvision
+from PIL import Image
+from matplotlib.transforms import Affine2D
+from torch.utils.data import Dataset
 from tqdm import tqdm
 
+
 class CornellDataset(Dataset):
-    def __init__(self, cornell_dataset_path, n_classes=18, transforms=None, depth_path=None, format="RGB"):
+    def __init__(self, cornell_dataset_path, n_classes=18, transforms=None, depth_path=None, img_format="RGD"):
         """ Initialises a dataset object of the Cornell Grasping dataset.
            :param cornell_dataset_path: (str) path to Cornell Grasping dataset root directory.
            :param n_classes: (int) number of rotation classes
@@ -24,7 +25,7 @@ class CornellDataset(Dataset):
         self.dataset_path = cornell_dataset_path
         self.transforms = transforms
         self.n_classes = n_classes
-        self.format = format
+        self.img_format = img_format
 
         # if no depth path was specified, assume it is in the original Cornell Grasping dataset by default
         self.depth_path = depth_path
@@ -43,7 +44,7 @@ class CornellDataset(Dataset):
         img = Image.open(img_path).convert("RGB")
 
         # if RGD format has been selected
-        if self.format == "RGD":
+        if self.img_format == "RGD":
             depth_path = os.path.join(self.depth_path, os.path.splitext(os.path.basename(img_path))[0].rstrip('r') + 'd.png')
             depth_img = Image.open(depth_path).convert('L')
             r, g, b = img.split()
@@ -280,8 +281,10 @@ class CornellDataset(Dataset):
 
 if __name__ == '__main__':
     dataset_path = '../dataset/cornell/'
-    dataset = CornellDataset(dataset_path, format="RGD")
+    dataset = CornellDataset(dataset_path)
     dataset.visualise_sample()
+    # TO ADD - add transforms
+    # TO ADD - visualise sample with pre-processing
 
-    # OPTIONAL - generate depth data (if needed)
+    # OPTIONAL - generate depth data (uncomment and run if needed)
     # dataset.generate_depth_data()
