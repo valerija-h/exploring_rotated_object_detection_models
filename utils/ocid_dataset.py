@@ -150,9 +150,9 @@ class OCIDDataset(Dataset):
         x1, x2, x3, x4 = bbox[0][0], bbox[1][0], bbox[2][0], bbox[3][0]
         y1, y2, y3, y4 = bbox[0][1], bbox[1][1], bbox[2][1], bbox[3][1]
         cx, cy = (x1 + x2 + x3 + x4) / 4, (y1 + y2 + y3 + y4) / 4
-        w = np.sqrt(np.power((x2 - x1), 2) + np.power((y2 - y1), 2))
-        h = np.sqrt(np.power((x3 - x2), 2) + np.power((y3 - y2), 2))
-        theta = (np.arctan2((y2 - y1), (x2 - x1)) + np.pi / 2) % np.pi - np.pi / 2  # calculate theta [-pi/2, pi/2]
+        h = np.sqrt(np.power((x2 - x1), 2) + np.power((y2 - y1), 2))
+        w = np.sqrt(np.power((x3 - x2), 2) + np.power((y3 - y2), 2))
+        theta = (np.arctan2((y2 - y1), (x2 - x1))) % np.pi - np.pi / 2  # calculate theta [-pi/2, pi/2]
         return round(cx, 3), round(cy, 3), round(w, 3), round(h, 3), round(theta, 5)
 
     def convert_to_class(self, theta):
