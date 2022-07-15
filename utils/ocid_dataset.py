@@ -7,10 +7,12 @@ from torch.utils.data import Dataset
 import matplotlib.pyplot as plt
 import matplotlib.patches as patches
 from matplotlib.transforms import Affine2D
+import torchvision
+
 
 class OCIDDataset(Dataset):
     def __init__(self, ocid_dataset_path, n_classes=18, transforms=None, img_format="RGD"):
-        """ Initialises a dataset object of the Cornell Grasping dataset.
+        """ Initialises a dataset object of the OCID Grasping dataset.
            :param ocid_dataset_path: (str) path to OCID Grasping dataset root directory.
            :param n_classes: (int) number of rotation classes
            :param transforms: (list) list of transformations to apply to images and grasps.
@@ -21,10 +23,10 @@ class OCIDDataset(Dataset):
         self.n_classes = n_classes
         self.img_format = img_format
 
-        print("[INFO] Loading Cornell Grasping dataset...")
+        print("[INFO] Loading OCID Grasping dataset...")
         self.class_list = self.generate_classes()  # creates a mapping of rotation class idxs to theta values
         self.img_list, self.grasp_list = self.generate_data()  # gets a list of image paths and their GT grasp poses
-        print("[INFO] Cornell Grasping dataset has been loaded.")
+        print("[INFO] OCID Grasping dataset has been loaded.")
 
     def __getitem__(self, idx):
         """ Loads and returns a sample (image and grasps) from the dataset at the given index idx (int). """
@@ -164,25 +166,15 @@ class OCIDDataset(Dataset):
         return self.n_classes
 
 
-    def visualise_sample(self, idx=None):
-        """ Visualise a data-sample without any pre-processing carried out. """
-        if idx is None:
-            idx = random.randint(0, len(self.img_list) - 1)
-
-        img = Image.open(self.img_list[idx]).convert("RGB")
-        grasps = self.grasp_list[idx]
-
-        # open as RGD image
-        if self.img_format == "RGD":
-            # open depth image and convert to [0, 255] format
-            depth_path = self.img_list[idx].replace("rgb", "depth")
-            depth = Image.fromarray(self.scale_values(np.array(Image.open(depth_path)))).convert('L')
-            r, g, b = img.split()
-            img = Image.merge('RGB', (r, g, depth))  # create RGD image
-
-        fig, ax = plt.subplots()
-        plt.imshow(img)
-        for (x, y, w, h, t, c) in grasps:
+    def visualise_sample(self, idx=None, preprocessed=False):
+        """ Visualise a data-sample with or without any pre-processing.
+           :param idx: (int) a sample idx to view from the dataset. If none is specified a random one is chosen.
+           :param preprocessed: (bool) specify whether to view sample before (False) or after (True) preprocessing and
+           transforms have been applied.
+         """
+        def plot_grasp(ax, grasp_pose):
+            """ Plots a single given grasp pose (x, y, w, h, t) on a given axes "ax". """
+            x, y, w, h, t = grasp_pose
             w_cos, w_sin, h_sin, h_cos = (w / 2) * np.cos(t), (w / 2) * np.sin(t), (h / 2) * np.sin(t), (
                     h / 2) * np.cos(t)
             bl_x, bl_y, tl_x, tl_y = x - w_cos + h_sin, y - w_sin - h_cos, x - w_cos - h_sin, y - w_sin + h_cos
@@ -193,10 +185,40 @@ class OCIDDataset(Dataset):
                                      transform=Affine2D().rotate_around(*(x, y), t) + ax.transData)
             ax.add_patch(rect)
 
+        # choose a random sample idx if idx not specified
+        if idx is None:
+            idx = random.randint(0, len(self.img_list) - 1)
+
+        fig, ax = plt.subplots()
+        print(f"[INFO] Plotting sample {idx} from the OCID Grasping dataset.")
+
+        # plots an image and it's corresponding grasp poses
+        if not preprocessed:
+            img = Image.open(self.img_list[idx]).convert("RGB")
+            grasps = self.grasp_list[idx]
+
+            for (x, y, w, h, t, c) in grasps:
+                plot_grasp(ax, (x, y, w, h, t))
+            plt.title("Original sample from the OCID Grasping dataset")
+        else:
+            img, targets = self.__getitem__(idx)
+            if torch.is_tensor(img):
+                img = torchvision.transforms.ToPILImage()(img)  # convert back to normal image
+            for b, (xmin, ymin, xmax, ymax) in enumerate(targets['boxes']):
+                w, h = xmax - xmin, ymax - ymin
+                x, y = xmax - (w / 2), ymax - (h / 2)
+                t_range = self.class_list[targets['labels'][b].item()]  # range of theta values [min_t, max_t]
+                t = (t_range[0] + t_range[1]) / 2
+                plot_grasp(ax, (x, y, w, h, t))
+            plt.title("Pre-processed sample from the OCID Grasping dataset")
+        plt.imshow(img)
         plt.show()
 
 
 if __name__ == '__main__':
-    dataset_path = '../dataset/ocid'  # cornell dataset folder
+    dataset_path = '../dataset/ocid'  # ocid dataset folder
     dataset = OCIDDataset(dataset_path)
-    dataset.visualise_sample()
+    dataset.visualise_sample(1, preprocessed=False)
+    # TO ADD - add transforms
+    # TO ADD - visualise sample with pre-processing
+
