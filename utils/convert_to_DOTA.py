@@ -1,4 +1,3 @@
-''' Convert the Dataset into DOTA format'''
 
 import os
 import torch
@@ -8,8 +7,8 @@ from utils.cornell_dataset import CornellDataset
 from utils.ocid_dataset import OCIDDataset
 from shapely.geometry import Polygon
 from config import *  # import all variables from config
-
 from utils import transforms as T
+
 from tqdm.auto import tqdm
 
 import matplotlib.pyplot as plt
@@ -20,22 +19,18 @@ import numpy as np
 # set seeds to ensure reproducibility
 torch.manual_seed(0)
 
-# data preprocessing parameters
-TEST_SPLIT = 0.20  # percentage of test samples from ALL samples 
-VAL_SPLIT = 0.10  # percentage of validation samples from TRAINING samples
-SEED_SPLIT = 42
-
-def split_dataset(dataset):
-    """ Split a PyTorch Dataset object into training, testing and validation sets. """
-    test_size = round(TEST_SPLIT * len(dataset))
-    train_size = len(dataset) - test_size
-    val_size = round(VAL_SPLIT * train_size)
-    train_size = train_size - val_size
-    train_dataset, test_dataset, val_dataset = torch.utils.data.random_split(dataset, [train_size, test_size, val_size],
-                                                                             generator=torch.Generator().manual_seed(SEED_SPLIT))
-    return train_dataset, test_dataset, val_dataset
+''' 
+This file generates copies of the original grasping datasets in DOTA format for the
+rotated object detector networks. 
+'''
 
 def VOC_to_DOTA(bbox, t):
+    """ Changes a given grasp box in VOC format [xmin, ymin, xmax, ymax] to DOTA format
+    [x1, y1, x2, y2, x3, y3, x4, y4].
+      :param bbox: (list) a grasp rectangle in VOC format [xmin, ymin, xmax, ymax] (i.e without rotation).
+      :param t: (float) the rotation value of bbox (in radians).
+      :return: (tuple) a grasp rectangle in DOTA format [x1, y1, x2, y2, x3, y3, x4, y4].
+     """
     xmin, ymin, xmax, ymax = bbox
     w, h = xmax - xmin, ymax - ymin
     x, y = xmax - (w / 2), ymax - (h / 2)
@@ -46,22 +41,36 @@ def VOC_to_DOTA(bbox, t):
     return tl_x, tl_y, tr_x, tr_y, br_x, br_y, bl_x, bl_y
 
 
-if __name__ == '__main__':
-    target_path = 'D:\Datasets\Cornell_DOTA'
-    dataset = CornellDataset('../dataset/cornell/rgd')
-    train_dataset, test_dataset, val_dataset = split_dataset(dataset)
-    subdir = ['/train/', '/test/', 'val']
+def generate_DOTA(dataset_name, dataset_path, DOTA_path):
+    if dataset_name == "cornell":
+        dataset = CornellDataset(dataset_path, img_format="RGB") # path to Cornell dataset
+    train_dataset, test_dataset, val_dataset = T.split_dataset(dataset)
+    subdir_name = ['train', 'test', 'val'] # folder names for images of each dataset split
+    annot_name = 'all_labels' # folder name containing all annotation files
     class_mapping = dataset.get_class_mapping()
+    print(f'[INFO]: Generating DOTA format files for the {dataset_name} Grasping dataset in the folder {os.path.join(DOTA_path, dataset_name)}.')
+
+    # if the subdir annot directory doesn't exist... make it
+    if not os.path.exists(os.path.join(DOTA_path, dataset_name, annot_name)):
+        print(f'[INFO]: Creating new directory to store DOTA annotations - {os.path.join(DOTA_path, dataset_name, annot_name)}')
+        os.makedirs(os.path.join(DOTA_path, dataset_name, annot_name))
 
     for s, split in enumerate([train_dataset, test_dataset, val_dataset]):
-        idxs = split.indices
-        for i, idx in enumerate(idxs):
+        # if the subdir img directories don't exist... make them
+        if not os.path.exists(os.path.join(DOTA_path, dataset_name, subdir_name[s])):
+            print(f'[INFO]: Creating new directory to store {subdir_name[s]} images - {os.path.join(DOTA_path, dataset_name, subdir_name[s])}')
+            os.makedirs(os.path.join(DOTA_path, dataset_name, subdir_name[s]))
+        idxs = split.indices # get the sample idxs of each dataset split
+        for i, idx in enumerate(tqdm(idxs, desc=f"'{subdir_name[s]}' files copied")):
             img, target = dataset.__getitem__(idx)
             img_name = os.path.basename(dataset.get_img_path(idx))
-            new_img_path = target_path + subdir[s] + img_name
-            new_annot_path = target_path + '/all_labels/' + img_name.replace("r.png", ".txt")
-
-            #for each bbox, write a text file in DOTA format
+            # OPTIONAL - remove trailing characters for some datasets to have same ID names for samples and i
+            if dataset_name == "cornell":
+                img_name = img_name.replace("r.png", ".png")
+            new_img_path = os.path.join(DOTA_path, dataset_name, subdir_name[s], img_name) # path to store new img
+            new_annot_path = os.path.join(DOTA_path, dataset_name, annot_name, img_name.replace(".png", ".txt")) # path to store new label
+            
+            # for each grasp rectangle, write a line in the annotation file in DOTA format
             annot_lines = []
             for b in range(len(target['labels'])):
                 bbox = target['boxes'][b]
@@ -76,6 +85,10 @@ if __name__ == '__main__':
             new_annot_file.close()
             img.save(new_img_path)
 
-            print(f'[INFO]: {subdir[s]} - {i}/{len(idxs)} copied - {img_name}')
+            # print(f'[INFO]: {subdir[s]} - {i}/{len(idxs)} copied - {img_name}')
+    print(f'[INFO]: Finished generating DOTA format files for the {dataset_name} Grasping dataset.')
 
 
+if __name__ == '__main__':
+    DOTA_path = '/home/user/Documents/DOTA_Datasets' # path to folder containing DOTA datasets
+    generate_DOTA("cornell", '/home/user/Documents/exploring_rotated_object_detectors_not_official/dataset/cornell/RGD',  DOTA_path)
