@@ -1,7 +1,6 @@
 
 import os
 import torch
-import time
 from utils.cornell_dataset import CornellDataset
 from utils.ocid_dataset import OCIDDataset
 from config import *
@@ -99,5 +98,5 @@ if __name__ == '__main__':
     DOTA_path = '/home/user/Documents/DOTA_Datasets' # path to folder containing DOTA datasets
     dataset_choice = 'cornell'
     dataset_path = '/home/user/Documents/exploring_rotated_object_detectors_not_official/dataset/cornell/RGD'
-
+    # TODO - change paths to config paths
     generate_DOTA(dataset_choice, dataset_path, DOTA_path)
