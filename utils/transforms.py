@@ -7,13 +7,30 @@ from matplotlib.transforms import Affine2D
 from PIL.Image import FLIP_LEFT_RIGHT, FLIP_TOP_BOTTOM, AFFINE
 import random
 import cv2
+from config import *
+
+""" 
+This file contains general utility functions for manipulating  the datasets 
+(i.e. loading, splitting, visualizing) as well as custom data augmentations 
+for augmenting the grasping datasets for the baseline network. 
+"""
 
 #############################################################################
 # --------------------------- UTILITY FUNCTIONS --------------------------- #
 #############################################################################
 
+def split_dataset(dataset):
+    """ Split a PyTorch Dataset object into training, testing and validation sets. """
+    test_size = round(TEST_SPLIT * len(dataset))
+    train_size = len(dataset) - test_size
+    val_size = round(VAL_SPLIT * train_size)
+    train_size = train_size - val_size
+    train_dataset, test_dataset, val_dataset = torch.utils.data.random_split(dataset, [train_size, test_size, val_size],
+                                                                             generator=torch.Generator().manual_seed(SEED_SPLIT))
+    return train_dataset, test_dataset, val_dataset
 
 def re_assign_class(theta, class_mapping):
+    """ Assigns a given theta value (in radians) to a rotation class based on a given class mapping dict. """
     for key, value in class_mapping.items():
         if value[0] <= theta < value[1]:
             return key
@@ -21,9 +38,11 @@ def re_assign_class(theta, class_mapping):
 
 
 def invert_angle(theta_class, class_mapping):
+    """ Returns the inverse theta value (in radians) of a given rotation class based on a given class mapping dict. """
     theta = (class_mapping[theta_class][0] + class_mapping[theta_class][1]) / 2
     return -theta
 
+# TODO - to edit to display a prediction or remove.
 def visualise_transforms(data_loader, class_mapping):
     images, targets = next(iter(data_loader))
 
@@ -51,7 +70,7 @@ def visualise_transforms(data_loader, class_mapping):
 
 
 def collate_fn(batch):
-    """ Needed for data loader to load images with batch size > 1 """
+    """ Function for PyTorch data loader to load images with batch size that is > 1. """
     return tuple(zip(*batch))
 
 

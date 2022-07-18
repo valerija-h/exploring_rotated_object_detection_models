@@ -2,13 +2,12 @@
 
 import os
 import torch
-import torchvision
 import time
 from torch.utils.data import DataLoader
 from utils.cornell_dataset import CornellDataset
 from utils.ocid_dataset import OCIDDataset
-from utils.jacquard_dataset import JacquardDataset
 from shapely.geometry import Polygon
+from config import *  # import all variables from config
 
 from utils import transforms as T
 from tqdm.auto import tqdm
@@ -18,27 +17,20 @@ import matplotlib.patches as patches
 from matplotlib.transforms import Affine2D
 import numpy as np
 
-# set seeds for reproducibility
+# set seeds to ensure reproducibility
 torch.manual_seed(0)
-#
-# datasets = [
-#     CornellDataset('../dataset/cornell/rgd'),
-#     JacquardDataset('../dataset/jacquard'),
-#     OCIDDataset('../dataset/ocid')
-# ]
 
 # data preprocessing parameters
-TEST_SPLIT = 0.20  # percentage of test samples from all samples
-VAL_SPLIT = 0.10  # percentage of validation samples from training samples
+TEST_SPLIT = 0.20  # percentage of test samples from ALL samples 
+VAL_SPLIT = 0.10  # percentage of validation samples from TRAINING samples
 SEED_SPLIT = 42
 
-# split the dataset into training, testing and validation sets
 def split_dataset(dataset):
+    """ Split a PyTorch Dataset object into training, testing and validation sets. """
     test_size = round(TEST_SPLIT * len(dataset))
     train_size = len(dataset) - test_size
     val_size = round(VAL_SPLIT * train_size)
     train_size = train_size - val_size
-
     train_dataset, test_dataset, val_dataset = torch.utils.data.random_split(dataset, [train_size, test_size, val_size],
                                                                              generator=torch.Generator().manual_seed(SEED_SPLIT))
     return train_dataset, test_dataset, val_dataset
