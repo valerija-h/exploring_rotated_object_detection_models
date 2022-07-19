@@ -4,3 +4,4 @@ libraries/**
 models/**
 .idea/**
 **/__pycache__/
+--pycache--/
