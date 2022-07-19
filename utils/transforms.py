@@ -44,9 +44,6 @@ def get_data_loaders(dataset_choice):
     test_loader = DataLoader(
         test_dataset, batch_size=TEST_BS, shuffle=False, num_workers=NUM_WORKERS, collate_fn=collate_fn
     )
-    print(f'[INFO] {dataset_choice.upper()} train dataset has {len(train_dataset)} samples.')
-    print(f'[INFO] {dataset_choice.upper()} validation dataset has {len(val_dataset)} samples.')
-    print(f'[INFO] {dataset_choice.upper()} test dataset has {len(test_dataset)} samples.')
     return train_loader, test_loader, val_loader, class_mappings
 
 

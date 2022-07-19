@@ -1,16 +1,7 @@
 import os
-import torch
 import torchvision
 import time
-
-from shapely.geometry import Polygon
 from tqdm.auto import tqdm
-
-import matplotlib.pyplot as plt
-import matplotlib.patches as patches
-from matplotlib.transforms import Affine2D
-import numpy as np
-
 from utils import transforms as T
 from config import *
 
@@ -33,7 +24,7 @@ def train_network(dataset_choice, model_name):
     optimizer = torch.optim.Adam(params, lr=learning_rate)
 
     # start training loop
-    print(f"[INFO] Training a new baseline model on the {dataset_choice.upper()} Grasping dataset...")
+    print(f"[INFO] Training a new baseline model on the {dataset_choice.upper()} Grasping dataset...", flush=True)
     train_hist, val_hist = {}, {}  # to store training and validation losses
     for e in range(epochs):
         print(f'Epoch {e+1}/{epochs}')
@@ -45,6 +36,7 @@ def train_network(dataset_choice, model_name):
         end = time.time()
         print(f"Took {((end - start) / 60):.3f} minutes for epoch {e+1}")
     # save model
+    print(f"[INFO] Training Finished. Saving the model.")
     torch.save(model.state_dict(), f"{model_name}")
 
 
@@ -138,104 +130,6 @@ def print_losses(loss_hist, epoch, prefix=''):
         line += f' - {prefix}{name}: {sum(value)/len(value):.3f}'
     print(line)
 
-
-# def get_points(box, t):
-#     xmin, ymin, xmax, ymax = box
-#     w, h = xmax - xmin, ymax - ymin
-#     x, y = xmax - (w / 2), ymax - (h / 2)
-#
-#     w_cos, w_sin, h_sin, h_cos = (w / 2) * np.cos(t), (w / 2) * np.sin(t), (h / 2) * np.sin(t), (
-#             h / 2) * np.cos(t)
-#     bl_x, bl_y, tl_x, tl_y = x - w_cos + h_sin, y - w_sin - h_cos, x - w_cos - h_sin, y - w_sin + h_cos
-#     br_x, br_y, tr_x, tr_y = x + w_cos + h_sin, y + w_sin - h_cos, x + w_cos - h_sin, y + w_sin + h_cos
-#     return (tl_x, tl_y), (bl_x, bl_y), (br_x, br_y), (tr_x, tr_y)
-#
-# def calc_grasp_metric(y_pred, y_test, img):
-#     # get the best bbox pred, theta pred
-#     bbox_pred = y_pred[0]['boxes'][0]
-#     class_pred = y_pred[0]['labels'][0].item()
-#     theta_pred = (class_mappings[class_pred][0] + class_mappings[class_pred][1]) / 2
-#
-#     for i in range(len(y_test[0]['boxes'])):
-#         gt_class = y_test[0]['labels'][i].item()
-#         gt_theta = (class_mappings[gt_class][0] + class_mappings[gt_class][1]) / 2
-#         gt_bbox = y_test[0]['boxes'][i]
-#
-#         # check if theta is within 30 degrees (0.523599 radians)
-#         if np.abs(gt_theta - theta_pred) < 0.523599 or (np.abs(np.abs(gt_theta - theta_pred) - np.pi)) < 0.523599:
-#             # now check if IOU > 0.25
-#             gt_grasp = Polygon(get_points(gt_bbox, gt_theta))
-#             pred_grasp = Polygon(get_points(bbox_pred, theta_pred))
-#
-#             intersection = gt_grasp.intersection(pred_grasp).area / gt_grasp.union(pred_grasp).area
-#             if intersection > 0.25:
-#                 plt.imshow(torchvision.transforms.ToPILImage()(img))
-#                 x, y = gt_grasp.exterior.xy
-#                 plt.plot(x, y, 'b')
-#                 x, y = pred_grasp.exterior.xy
-#                 plt.plot(x, y, 'r')
-#                 plt.title(f'IOU: {intersection}')
-#                 plt.show()
-#                 return True
-#     return False  # if metrics aren't met
-#
-#
-# def evaluate_network(test_data_loader, visualize=False):
-#     # load model
-#     model = create_model().to(DEVICE)
-#     model.load_state_dict(torch.load(MODEL_PATH, map_location=DEVICE))
-#     # set model to evaluation mode
-#     model.eval()
-#
-#     device = torch.device("cpu")
-#
-#     for i, data in enumerate(test_data_loader):
-#         # get images and targets and send to device (i.e. GPU)
-#         images, targets = data
-#         x_test = list(image.to(DEVICE) for image in images)
-#         y_test = [{k: v.to(device) for k, v in t.items()} for t in targets]
-#
-#         y_pred = model(x_test)
-#         y_pred = [{k: v.to(device) for k, v in t.items()} for t in y_pred]
-#
-#         # warning this will only work with BS of 1 for now
-#         is_correct = calc_grasp_metric(y_pred, y_test, images[0])
-#
-#         if visualize == True:
-#             plot_prediction(images[0], y_pred[0], class_mappings)
-#             #print(y_pred)
-#             #print(i)
-#             #print(y_pred)
-#
-#
-#
-# '''
-# Plots a single image and its predictions.
-# '''
-# def plot_prediction(image, y_pred, class_mapping):
-#     # transform image back to PIL format for plotting
-#     image = torchvision.transforms.ToPILImage()(image)
-#
-#     fig, ax = plt.subplots()
-#     ax.imshow(image)
-#     for b, (xmin, ymin, xmax, ymax) in enumerate(y_pred['boxes']):
-#         if b == 0:
-#         #if y_pred['scores'][b] > 0.5:
-#             w, h = (xmax.item() - xmin.item()), (ymax.item() - ymin.item())
-#             x, y = (xmax.item() - (w/ 2)), (ymax.item() - (h / 2))
-#             t_range = class_mapping[y_pred['labels'][b].item()]  # range of theta values [min_t, max_t]
-#             t = (t_range[0] + t_range[1]) / 2
-#             w_cos, w_sin, h_sin, h_cos = (w / 2) * np.cos(t), (w / 2) * np.sin(t), (h / 2) * np.sin(t), (
-#                     h / 2) * np.cos(t)
-#             bl_x, bl_y, tl_x, tl_y = x - w_cos + h_sin, y - w_sin - h_cos, x - w_cos - h_sin, y - w_sin + h_cos
-#             br_x, br_y, tr_x, tr_y = x + w_cos + h_sin, y + w_sin - h_cos, x + w_cos - h_sin, y + w_sin + h_cos
-#             plt.plot([bl_x, tl_x], [bl_y, tl_y], c='black')
-#             plt.plot([br_x, tr_x], [br_y, tr_y], c='black')
-#             rect = patches.Rectangle((x - (w / 2), y - (h / 2)), w, h, linewidth=1, edgecolor='r', facecolor='none',
-#                                      transform=Affine2D().rotate_around(*(x, y), t) + ax.transData)
-#             ax.add_patch(rect)
-#
-#     plt.show()
 
 if __name__ == '__main__':
     dataset_choice = 'cornell'

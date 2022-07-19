@@ -180,7 +180,7 @@ class CornellDataset(Dataset):
         # create a depth folder if one doesn't exist
         if not os.path.isdir(self.depth_path):
             os.mkdir(self.depth_path)
-        print(f"[INFO] Generating Cornell Grasping depth images in the folder: {self.depth_path}")
+        print(f"[INFO] Generating Cornell Grasping depth images in the folder - {self.depth_path}", flush=True)
 
         def inpaint(img, missing_value=0):
             """ Inpaint missing values in depth image. Note this was taken directly from
