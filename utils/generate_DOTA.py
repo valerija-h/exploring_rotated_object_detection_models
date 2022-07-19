@@ -1,19 +1,17 @@
-
 import os
 import torch
 from utils.cornell_dataset import CornellDataset
 from utils.ocid_dataset import OCIDDataset
-from config import *
 from utils import transforms as T
 from tqdm.auto import tqdm
 import numpy as np
+from config import *
 
 # set seeds to ensure reproducibility
 torch.manual_seed(0)
 
 ''' 
-This file generates copies of the original grasping datasets in DOTA format for the
-rotated object detector networks. 
+This file generates copies of the original grasping datasets in DOTA format for the rotated object detector networks. 
 '''
 
 def VOC_to_DOTA(bbox, t):
@@ -33,25 +31,27 @@ def VOC_to_DOTA(bbox, t):
     return tl_x, tl_y, tr_x, tr_y, br_x, br_y, bl_x, bl_y
 
 
-def generate_DOTA(dataset_name, dataset_path, DOTA_path, img_format="RGD"):
+def generate_DOTA(dataset_name, DOTA_path, img_format="RGD"):
     """ Generates copies of images and annotations of a grasping dataset in DOTA format. 
       :param dataset_name: (str) the name of the dataset to copy images and grasps from. Either "cornell" or "ocid".
-      :param dataset_path: (str) the root directory of the original dataset (i.e. dataset_name).
       :param DOTA_path: (str) the directory where all DOTA datasets will be placed into.
       :param img_format: (str) the format to save images in. Either "RGD" or "RGB".
     """
 
     # load the correct Dataset object
     if dataset_name == "cornell":
-        dataset = CornellDataset(dataset_path, img_format=img_format) 
+        dataset_path = CORNELL_PATH
+        dataset = CornellDataset(dataset_path, img_format=img_format)
     elif dataset_name == "ocid":
+        dataset_path = OCID_PATH
         dataset = OCIDDataset(dataset_path, img_format=img_format)
 
-    train_dataset, test_dataset, val_dataset = T.split_dataset(dataset) # split dataset into train, test, val sets
+    train_dataset, test_dataset, val_dataset = T.split_dataset(dataset)  # split dataset into train, test, val sets
     subdir_name = ['train', 'test', 'val'] # folder names for images of each dataset split
     annot_name = 'all_labels' # folder name containing all annotation files
     class_mapping = dataset.get_class_mapping()
-    print(f'[INFO]: Generating DOTA format files for the {dataset_name} Grasping dataset in the folder {os.path.join(DOTA_path, dataset_name)}.')
+    print(f'[INFO]: Generating DOTA format files for the {dataset_name.upper()} Grasping dataset in the directory - '
+          f'{os.path.join(DOTA_path, dataset_name)}')
 
     # if the subdir annot directory doesn't exist... make it
     if not os.path.exists(os.path.join(DOTA_path, dataset_name, annot_name)):
@@ -64,7 +64,7 @@ def generate_DOTA(dataset_name, dataset_path, DOTA_path, img_format="RGD"):
             print(f'[INFO]: Creating new directory to store {subdir_name[s]} images - {os.path.join(DOTA_path, dataset_name, subdir_name[s])}')
             os.makedirs(os.path.join(DOTA_path, dataset_name, subdir_name[s]))
         
-        idxs = split.indices # get the sample idxs of each dataset split
+        idxs = split.indices  # get the sample idxs of each dataset split
         for idx in tqdm(idxs, desc=f"'{subdir_name[s]}' files copied"):
             img, target = dataset.__getitem__(idx)
             img_name = os.path.basename(dataset.get_img_path(idx))
@@ -73,7 +73,7 @@ def generate_DOTA(dataset_name, dataset_path, DOTA_path, img_format="RGD"):
             if dataset_name == "cornell":
                 img_name = img_name.replace("r.png", ".png")
 
-            new_img_path = os.path.join(DOTA_path, dataset_name, subdir_name[s], img_name) # path to store new img
+            new_img_path = os.path.join(DOTA_path, dataset_name, subdir_name[s], img_name)  # path to store new img
             new_annot_path = os.path.join(DOTA_path, dataset_name, annot_name, img_name.replace(".png", ".txt")) # path to store new label
             
             # for each grasp rectangle, create a line in the annotation file (in DOTA format)
@@ -94,9 +94,5 @@ def generate_DOTA(dataset_name, dataset_path, DOTA_path, img_format="RGD"):
 
 
 if __name__ == '__main__':
-    # IMPORTANT - change before running
-    DOTA_path = '/home/user/Documents/DOTA_Datasets' # path to folder containing DOTA datasets
-    dataset_choice = 'cornell'
-    dataset_path = '/home/user/Documents/exploring_rotated_object_detectors_not_official/dataset/cornell/RGD'
-    # TODO - change paths to config paths
-    generate_DOTA(dataset_choice, dataset_path, DOTA_path)
+    dataset_choice = 'ocid'  # IMPORTANT - change before running 'cornell' or 'ocid'
+    generate_DOTA(dataset_choice, DOTA_PATH, img_format=IMG_FORMAT)

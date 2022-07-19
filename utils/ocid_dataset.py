@@ -8,6 +8,7 @@ import torchvision
 from PIL import Image
 from matplotlib.transforms import Affine2D
 from torch.utils.data import Dataset
+from config import *
 
 class OCIDDataset(Dataset):
     def __init__(self, ocid_dataset_path, n_classes=18, transforms=None, img_format="RGD"):
@@ -215,8 +216,7 @@ class OCIDDataset(Dataset):
 
 
 if __name__ == '__main__':
-    dataset_path = '../dataset/ocid'  # ocid dataset folder
-    dataset = OCIDDataset(dataset_path)
+    dataset = OCIDDataset(OCID_PATH, img_format=IMG_FORMAT)
     dataset.visualise_sample(1143)
     # TO ADD - add transforms
     # TO ADD - visualise sample with pre-processing

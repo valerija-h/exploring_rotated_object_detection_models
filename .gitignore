@@ -1,4 +1,5 @@
 dataset/**
+DOTA_dataset/**
 libraries/**
 models/**
 .idea/**

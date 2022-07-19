@@ -11,6 +11,7 @@ from PIL import Image
 from matplotlib.transforms import Affine2D
 from torch.utils.data import Dataset
 from tqdm import tqdm
+from config import *
 
 
 class CornellDataset(Dataset):
@@ -280,8 +281,7 @@ class CornellDataset(Dataset):
         plt.show()
 
 if __name__ == '__main__':
-    dataset_path = '../dataset/cornell/'
-    dataset = CornellDataset(dataset_path)
+    dataset = CornellDataset(CORNELL_PATH, img_format=IMG_FORMAT)
     dataset.visualise_sample()
     # TO ADD - add transforms
     # TO ADD - visualise sample with pre-processing
