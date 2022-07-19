@@ -47,7 +47,7 @@ def get_data_loaders(dataset_choice):
     print(f'[INFO] {dataset_choice.upper()} train dataset has {len(train_dataset)} samples.')
     print(f'[INFO] {dataset_choice.upper()} validation dataset has {len(val_dataset)} samples.')
     print(f'[INFO] {dataset_choice.upper()} test dataset has {len(test_dataset)} samples.')
-    return train_loader, test_loader, val_loader
+    return train_loader, test_loader, val_loader, class_mappings
 
 
 def get_transforms(dataset_choice, class_mappings, rs=False, rr=False, rhp=False, rvp=False):

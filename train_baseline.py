@@ -17,124 +17,128 @@ from config import *
 torch.manual_seed(0)  # set seeds to ensure reproducibility
 
 
-#
-#
-# def val_one_epoch(model, data_loader, epoch, val_hist):
-#     model.train()  # keep it on train mode
-#     prog_bar = tqdm(data_loader, total=len(data_loader))
-#
-#     val_hist[epoch] = {'loss': [], 'cls_loss': [], 'bbox_loss': [], 'rpn_cls_loss': [], 'rpn_bbox_loss': []}
-#     for i, data in enumerate(prog_bar):
-#         # get images and targets and send to device (i.e. GPU)
-#         images, targets = data
-#         images = list(image.to(DEVICE) for image in images)
-#         targets = [{k: v.to(DEVICE) for k, v in t.items()} for t in targets]
-#
-#         with torch.no_grad():
-#             loss_dict = model(images, targets)
-#         losses = sum(loss for loss in loss_dict.values())
-#         loss_value = losses.item()
-#
-#         # update loss for each batch
-#         prog_bar.set_description(desc=f"Validation Loss: {loss_value:.4f}")
-#
-#         # store losses for history and reporting results
-#         val_hist[epoch]['loss'].append(loss_value)
-#         val_hist[epoch]['cls_loss'].append(loss_dict['loss_classifier'].item())
-#         val_hist[epoch]['bbox_loss'].append(loss_dict['loss_box_reg'].item())
-#         val_hist[epoch]['rpn_cls_loss'].append(loss_dict['loss_objectness'].item())
-#         val_hist[epoch]['rpn_bbox_loss'].append(loss_dict['loss_rpn_box_reg'].item())
-#     return val_hist
-#
-# def train_one_epoch(model, data_loader, optimizer, epoch, train_hist):
-#     model.train()  # set model to train mode
-#     prog_bar = tqdm(data_loader, total=len(data_loader))
-#
-#     train_hist[epoch] = {'loss': [], 'cls_loss': [], 'bbox_loss': [], 'rpn_cls_loss': [], 'rpn_bbox_loss': []}
-#     for i, data in enumerate(prog_bar):
-#         # get images and targets and send to device (i.e. GPU)
-#         images, targets = data
-#         images = list(image.to(DEVICE) for image in images)
-#         targets = [{k: v.to(DEVICE) for k, v in t.items()} for t in targets]
-#
-#         # zero out gradients
-#         optimizer.zero_grad()
-#
-#         # get losses
-#         loss_dict = model(images, targets)
-#         losses = sum(loss for loss in loss_dict.values())
-#         loss_value = losses.item()
-#
-#         # back propagation and adjust learning weights
-#         losses.backward()
-#         optimizer.step()
-#
-#         # update loss for each batch
-#         prog_bar.set_description(desc=f"Loss: {loss_value:.4f}")
-#
-#         # store losses for history and reporting results
-#         train_hist[epoch]['loss'].append(loss_value)
-#         train_hist[epoch]['cls_loss'].append(loss_dict['loss_classifier'].item())
-#         train_hist[epoch]['bbox_loss'].append(loss_dict['loss_box_reg'].item())
-#         train_hist[epoch]['rpn_cls_loss'].append(loss_dict['loss_objectness'].item())
-#         train_hist[epoch]['rpn_bbox_loss'].append(loss_dict['loss_rpn_box_reg'].item())
-#     return train_hist
-#
-# def create_model(freeze_layers=False):
-#     num_classes = len(class_mappings) + 1  # rotation classes + invalid proposal
-#
-#     # load a model pre-trained on COCO
-#     # model = torchvision.models.detection.fasterrcnn_resnet50_fpn(pretrained=True)
-#     # load a model pre-trained on COCO with cutom anchors
-#     anchor_sizes = ((16,), (32,), (64,), (128,), (256,),)
-#     aspect_ratios = ((0.25, 0.5, 1.0),) * len(anchor_sizes)
-#     anchor_generator = torchvision.models.detection.rpn.AnchorGenerator(anchor_sizes, aspect_ratios)
-#     backbone = torchvision.models.detection.backbone_utils.resnet_fpn_backbone('resnet101', pretrained=True)
-#     model = torchvision.models.detection.FasterRCNN(backbone,num_classes=2,rpn_anchor_generator=anchor_generator)
-#
-#     if freeze_layers:
-#         for param in model.parameters():
-#             param.requires_grad = False
-#
-#     # create our own head models
-#     in_features = model.roi_heads.box_predictor.cls_score.in_features
-#     model.roi_heads.box_predictor = torchvision.models.detection.faster_rcnn.FastRCNNPredictor(in_features, num_classes)
-#     return model
-#
-# def print_losses(loss_hist, epoch, prefix=''):
-#     line = f'Epoch {epoch}'
-#     for name, value in loss_hist[epoch].items():
-#         line += f' - {prefix}{name}: {sum(value)/len(value):.3f}'
-#     print(line)
-#
-# def train_network(train_data_loader, val_data_loader):
-#     # get pre-trained model
-#     model = create_model()
-#
-#     # set model to device for training
-#     model.to(DEVICE)
-#
-#     # set training parameters
-#     epochs = 20
-#     learning_rate = 0.0001
-#     params = [p for p in model.parameters() if p.requires_grad]
-#     optimizer = torch.optim.Adam(params, lr=learning_rate)
-#
-#     # start training loop
-#     print("[INFO] training model...")
-#     train_hist, val_hist = {}, {}
-#     for e in range(epochs):
-#         print(f'Epoch {e}/{epochs - 1}')
-#         start = time.time()
-#         train_hist = train_one_epoch(model, train_data_loader, optimizer, e, train_hist)
-#         val_hist = val_one_epoch(model, val_data_loader, e, val_hist)
-#         print_losses(train_hist, e)
-#         print_losses(val_hist, e, prefix='val_')
-#         end = time.time()
-#         print(f"Took {((end - start) / 60):.3f} minutes for epoch {e}")
-#
-#     torch.save(model.state_dict(), f"{MODEL_PATH}") # save model
-#
+def train_network(dataset_choice, model_name):
+    """ This function trains a baseline model and saves it in the models directory.
+       :param dataset_choice: (str) the dataset to train the baseline model on "ocid" or "cornell".
+       :param model_name: (str) the path to save the model to.
+    """
+    train_loader, test_loader, val_loader, class_mappings = T.get_data_loaders(dataset_choice)  # get data
+    model = create_model(class_mappings)  # create a model with pre-trained weights
+    model.to(TRAIN_DEVICE)  # set model to GPU for training
+
+    # set training parameters
+    epochs = EPOCHS
+    learning_rate = LEARNING_RATE
+    params = [p for p in model.parameters() if p.requires_grad]
+    optimizer = torch.optim.Adam(params, lr=learning_rate)
+
+    # start training loop
+    print(f"[INFO] Training a new baseline model on the {dataset_choice.upper()} Grasping dataset...")
+    train_hist, val_hist = {}, {}  # to store training and validation losses
+    for e in range(epochs):
+        print(f'Epoch {e+1}/{epochs}')
+        start = time.time()
+        train_hist = train_one_epoch(model, train_loader, optimizer, e, train_hist)
+        val_hist = val_one_epoch(model, val_loader, e, val_hist)
+        print_losses(train_hist, e)
+        print_losses(val_hist, e, prefix='val_')
+        end = time.time()
+        print(f"Took {((end - start) / 60):.3f} minutes for epoch {e+1}")
+    # save model
+    torch.save(model.state_dict(), f"{model_name}")
+
+
+def create_model(class_mappings, freeze_layers=False):
+    """ Returns a FasterRCNN model with pre-trained weights. """
+    num_classes = len(class_mappings) + 1  # rotation classes + invalid proposal
+
+    # load a model pre-trained on COCO with custom anchors
+    anchor_sizes = ((16,), (32,), (64,), (128,), (256,),)
+    aspect_ratios = ((0.25, 0.5, 1.0),) * len(anchor_sizes)
+    anchor_generator = torchvision.models.detection.rpn.AnchorGenerator(anchor_sizes, aspect_ratios)
+    backbone = torchvision.models.detection.backbone_utils.resnet_fpn_backbone('resnet101', pretrained=True)
+    model = torchvision.models.detection.FasterRCNN(backbone, num_classes=2, rpn_anchor_generator=anchor_generator)
+
+    if freeze_layers:
+        for param in model.parameters():
+            param.requires_grad = False
+
+    # create our own head models
+    in_features = model.roi_heads.box_predictor.cls_score.in_features
+    model.roi_heads.box_predictor = torchvision.models.detection.faster_rcnn.FastRCNNPredictor(in_features, num_classes)
+    return model
+
+
+def train_one_epoch(model, data_loader, optimizer, epoch, train_hist):
+    model.train()  # set model to train mode
+    prog_bar = tqdm(data_loader, total=len(data_loader))
+
+    train_hist[epoch] = {'loss': [], 'cls_loss': [], 'bbox_loss': [], 'rpn_cls_loss': [], 'rpn_bbox_loss': []}
+    for i, data in enumerate(prog_bar):
+        # get images and targets and send to device (i.e. GPU)
+        images, targets = data
+        images = list(image.to(TRAIN_DEVICE) for image in images)
+        targets = [{k: v.to(TRAIN_DEVICE) for k, v in t.items()} for t in targets]
+
+        optimizer.zero_grad()   # zero out gradients
+
+        # get losses
+        loss_dict = model(images, targets)
+        losses = sum(loss for loss in loss_dict.values())
+        loss_value = losses.item()
+
+        # back propagation and adjust learning weights
+        losses.backward()
+        optimizer.step()
+
+        # update loss for each batch
+        prog_bar.set_description(desc=f"Training Loss: {loss_value:.4f}")
+
+        # store losses for history and reporting results
+        train_hist[epoch]['loss'].append(loss_value)
+        train_hist[epoch]['cls_loss'].append(loss_dict['loss_classifier'].item())
+        train_hist[epoch]['bbox_loss'].append(loss_dict['loss_box_reg'].item())
+        train_hist[epoch]['rpn_cls_loss'].append(loss_dict['loss_objectness'].item())
+        train_hist[epoch]['rpn_bbox_loss'].append(loss_dict['loss_rpn_box_reg'].item())
+    return train_hist
+
+
+def val_one_epoch(model, data_loader, epoch, val_hist):
+    model.train()  # keep it on train mode
+    prog_bar = tqdm(data_loader, total=len(data_loader))
+
+    val_hist[epoch] = {'loss': [], 'cls_loss': [], 'bbox_loss': [], 'rpn_cls_loss': [], 'rpn_bbox_loss': []}
+    for i, data in enumerate(prog_bar):
+        # get images and targets and send to device (i.e. GPU)
+        images, targets = data
+        images = list(image.to(TRAIN_DEVICE) for image in images)
+        targets = [{k: v.to(TRAIN_DEVICE) for k, v in t.items()} for t in targets]
+
+        with torch.no_grad():
+            loss_dict = model(images, targets)
+        losses = sum(loss for loss in loss_dict.values())
+        loss_value = losses.item()
+
+        # update loss for each batch
+        prog_bar.set_description(desc=f"Validation Loss: {loss_value:.4f}")
+
+        # store losses for history and reporting results
+        val_hist[epoch]['loss'].append(loss_value)
+        val_hist[epoch]['cls_loss'].append(loss_dict['loss_classifier'].item())
+        val_hist[epoch]['bbox_loss'].append(loss_dict['loss_box_reg'].item())
+        val_hist[epoch]['rpn_cls_loss'].append(loss_dict['loss_objectness'].item())
+        val_hist[epoch]['rpn_bbox_loss'].append(loss_dict['loss_rpn_box_reg'].item())
+    return val_hist
+
+
+def print_losses(loss_hist, epoch, prefix=''):
+    """ Prints out the losses of the RPN head and FasterRCNN head in the baseline model. """
+    line = f'Epoch {epoch+1}'
+    for name, value in loss_hist[epoch].items():
+        line += f' - {prefix}{name}: {sum(value)/len(value):.3f}'
+    print(line)
+
+
 # def get_points(box, t):
 #     xmin, ymin, xmax, ymax = box
 #     w, h = xmax - xmin, ymax - ymin
@@ -233,17 +237,8 @@ torch.manual_seed(0)  # set seeds to ensure reproducibility
 #
 #     plt.show()
 
-
 if __name__ == '__main__':
     dataset_choice = 'cornell'
-    train_loader, test_loader, val_loader = T.get_data_loaders(dataset_choice)
+    model_name = os.path.join(MODELS_PATH, f'baseline_{dataset_choice}_epoch_{EPOCHS}.pth')
+    train_network(dataset_choice, model_name)
 
-    # # if the model_path exists - evaluate it, otherwise train a new model and save it to model_path
-    # if not os.path.exists(MODEL_PATH):
-    #     train_network(train_loader, val_loader)
-    #
-    # # evaluate model
-    # evaluate_network(test_loader, visualize=True)
-
-    #visualize a transformed example
-    #T.visualise_transforms(test_loader, class_mappings)

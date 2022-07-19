@@ -15,7 +15,8 @@ DOTA_PATH = r'C:\Users\vholo\PycharmProjects\exploring_rotated_object_detectors_
 MODELS_PATH = r'C:\Users\vholo\PycharmProjects\exploring_rotated_object_detectors_final\models'
 TRAIN_DEVICE = torch.device("cuda" if torch.cuda.is_available() else "cpu")
 EVAL_DEVICE = "cpu"
-EPOCHS = 5
+EPOCHS = 1
+LEARNING_RATE = 0.0001
 
 # batch sizes
 TRAIN_BS = 8
