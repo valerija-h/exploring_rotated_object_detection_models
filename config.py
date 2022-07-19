@@ -23,3 +23,5 @@ TRAIN_BS = 8
 TEST_BS = 1
 VAL_BS = 1
 NUM_WORKERS = 4
+
+MMROTATE_PATH = r'C:\Users\vholo\PycharmProjects\exploring_rotated_object_detectors_final\libraries\mmrotate'

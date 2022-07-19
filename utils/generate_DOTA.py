@@ -40,29 +40,27 @@ def generate_DOTA(dataset_name, DOTA_path, img_format="RGD"):
 
     # load the correct Dataset object
     if dataset_name == "cornell":
-        dataset_path = CORNELL_PATH
-        dataset = CornellDataset(dataset_path, img_format=img_format)
+        dataset = CornellDataset(CORNELL_PATH, img_format=img_format)
     elif dataset_name == "ocid":
-        dataset_path = OCID_PATH
-        dataset = OCIDDataset(dataset_path, img_format=img_format)
+        dataset = OCIDDataset(OCID_PATH, img_format=img_format)
 
     train_dataset, test_dataset, val_dataset = T.split_dataset(dataset)  # split dataset into train, test, val sets
-    subdir_name = ['train', 'test', 'val'] # folder names for images of each dataset split
-    annot_name = 'all_labels' # folder name containing all annotation files
+    subdir_name = ['train', 'test', 'val']  # folder names for annotations of each dataset split
+    images_name = 'images'  # folder name containing all image files
     class_mapping = dataset.get_class_mapping()
     print(f'[INFO]: Generating DOTA format files for the {dataset_name.upper()} Grasping dataset in the directory - '
           f'{os.path.join(DOTA_path, dataset_name)}')
 
     # if the subdir annot directory doesn't exist... make it
-    if not os.path.exists(os.path.join(DOTA_path, dataset_name, annot_name)):
-        print(f'[INFO]: Creating new directory to store DOTA annotations - {os.path.join(DOTA_path, dataset_name, annot_name)}')
-        os.makedirs(os.path.join(DOTA_path, dataset_name, annot_name))
+    if not os.path.exists(os.path.join(DOTA_path, dataset_name, images_name)):
+        print(f'[INFO]: Creating new directory to store all images - {os.path.join(DOTA_path, dataset_name, images_name)}')
+        os.makedirs(os.path.join(DOTA_path, dataset_name, images_name))
 
     for s, split in enumerate([train_dataset, test_dataset, val_dataset]):
         # if the subdir img directories don't exist... make them
-        if not os.path.exists(os.path.join(DOTA_path, dataset_name, subdir_name[s])):
-            print(f'[INFO]: Creating new directory to store {subdir_name[s]} images - {os.path.join(DOTA_path, dataset_name, subdir_name[s])}')
-            os.makedirs(os.path.join(DOTA_path, dataset_name, subdir_name[s]))
+        if not os.path.exists(os.path.join(DOTA_path, dataset_name, subdir_name[s] + "_labels")):
+            print(f'[INFO]: Creating new directory to store {subdir_name[s]} annotations - {os.path.join(DOTA_path, dataset_name, subdir_name[s] + "_labels")}')
+            os.makedirs(os.path.join(DOTA_path, dataset_name, subdir_name[s] + "_labels"))
         
         idxs = split.indices  # get the sample idxs of each dataset split
         for idx in tqdm(idxs, desc=f"'{subdir_name[s]}' files copied"):
@@ -73,8 +71,8 @@ def generate_DOTA(dataset_name, DOTA_path, img_format="RGD"):
             if dataset_name == "cornell":
                 img_name = img_name.replace("r.png", ".png")
 
-            new_img_path = os.path.join(DOTA_path, dataset_name, subdir_name[s], img_name)  # path to store new img
-            new_annot_path = os.path.join(DOTA_path, dataset_name, annot_name, img_name.replace(".png", ".txt")) # path to store new label
+            new_img_path = os.path.join(DOTA_path, dataset_name, images_name, img_name)  # path to store new annotation
+            new_annot_path = os.path.join(DOTA_path, dataset_name, subdir_name[s] + "_labels", img_name.replace(".png", ".txt")) # path to store new image
             
             # for each grasp rectangle, create a line in the annotation file (in DOTA format)
             annot_lines = []
@@ -94,5 +92,5 @@ def generate_DOTA(dataset_name, DOTA_path, img_format="RGD"):
 
 
 if __name__ == '__main__':
-    dataset_choice = 'ocid'  # IMPORTANT - change before running 'cornell' or 'ocid'
+    dataset_choice = 'cornell'  # IMPORTANT - change before running 'cornell' or 'ocid'
     generate_DOTA(dataset_choice, DOTA_PATH, img_format=IMG_FORMAT)

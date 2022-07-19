@@ -3,17 +3,19 @@ import torchvision
 import time
 from tqdm.auto import tqdm
 from utils import transforms as T
+from utils.cornell_dataset import CornellDataset
+from utils.ocid_dataset import OCIDDataset
 from config import *
 
 torch.manual_seed(0)  # set seeds to ensure reproducibility
 
 
-def train_network(dataset_choice, model_name):
+def train_network(dataset, model_name):
     """ This function trains a baseline model and saves it in the models directory.
-       :param dataset_choice: (str) the dataset to train the baseline model on "ocid" or "cornell".
+       :param dataset: (Dataset) the dataset to train the baseline model on "ocid" or "cornell".
        :param model_name: (str) the path to save the model to.
     """
-    train_loader, test_loader, val_loader, class_mappings = T.get_data_loaders(dataset_choice)  # get data
+    train_loader, test_loader, val_loader = T.get_data_loaders(dataset)  # get data
     model = create_model(class_mappings)  # create a model with pre-trained weights
     model.to(TRAIN_DEVICE)  # set model to GPU for training
 
@@ -24,7 +26,7 @@ def train_network(dataset_choice, model_name):
     optimizer = torch.optim.Adam(params, lr=learning_rate)
 
     # start training loop
-    print(f"[INFO] Training a new baseline model on the {dataset_choice.upper()} Grasping dataset...", flush=True)
+    print(f"[INFO] Training a new baseline model...", flush=True)
     train_hist, val_hist = {}, {}  # to store training and validation losses
     for e in range(epochs):
         print(f'Epoch {e+1}/{epochs}')
@@ -133,6 +135,17 @@ def print_losses(loss_hist, epoch, prefix=''):
 
 if __name__ == '__main__':
     dataset_choice = 'cornell'
+
+    # get the data
+    if dataset_choice == "cornell":
+        dataset = CornellDataset(CORNELL_PATH, img_format=IMG_FORMAT)
+    elif dataset_choice == "ocid":
+        dataset = OCIDDataset(OCID_PATH, img_format=IMG_FORMAT)
+    # get class mappings and transformations
+    class_mappings = dataset.get_class_mapping()
+    dataset.set_transforms(transforms=T.get_transforms(dataset_choice, class_mappings))
+
+    # train model
     model_name = os.path.join(MODELS_PATH, f'baseline_{dataset_choice}_epoch_{EPOCHS}.pth')
-    train_network(dataset_choice, model_name)
+    train_network(dataset, model_name)
 

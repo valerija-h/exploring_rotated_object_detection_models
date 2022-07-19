@@ -1,12 +1,7 @@
 import torchvision
 from torch.utils.data import DataLoader
 import numpy as np
-import matplotlib.pyplot as plt
-import matplotlib.patches as patches
-from matplotlib.transforms import Affine2D
 from PIL.Image import FLIP_LEFT_RIGHT, FLIP_TOP_BOTTOM, AFFINE
-from utils.cornell_dataset import CornellDataset
-from utils.ocid_dataset import OCIDDataset
 import random
 import cv2
 from config import *
@@ -22,16 +17,8 @@ for augmenting the grasping datasets for the baseline network.
 #############################################################################
 
 
-def get_data_loaders(dataset_choice):
+def get_data_loaders(dataset):
     """ This function returns data loaders for a particular dataset for training or evaluating. """
-    # get the chosen dataset object
-    if dataset_choice == "cornell":
-        dataset = CornellDataset(CORNELL_PATH, img_format=IMG_FORMAT)
-    elif dataset_choice == "ocid":
-        dataset = OCIDDataset(OCID_PATH, img_format=IMG_FORMAT)
-    # get class mappings and transformations
-    class_mappings = dataset.get_class_mapping()
-    dataset.set_transforms(transforms=get_transforms(dataset_choice, class_mappings))
     # split dataset into training and testing
     train_dataset, test_dataset, val_dataset = split_dataset(dataset)
     # generate dataloaders
@@ -44,7 +31,7 @@ def get_data_loaders(dataset_choice):
     test_loader = DataLoader(
         test_dataset, batch_size=TEST_BS, shuffle=False, num_workers=NUM_WORKERS, collate_fn=collate_fn
     )
-    return train_loader, test_loader, val_loader, class_mappings
+    return train_loader, test_loader, val_loader
 
 
 def get_transforms(dataset_choice, class_mappings, rs=False, rr=False, rhp=False, rvp=False):
@@ -98,32 +85,6 @@ def invert_angle(theta_class, class_mapping):
     """ Returns the inverse theta value (in radians) of a given rotation class based on a given class mapping dict. """
     theta = (class_mapping[theta_class][0] + class_mapping[theta_class][1]) / 2
     return -theta
-
-# TODO - to edit to display a prediction or remove.
-def visualise_transforms(data_loader, class_mapping):
-    images, targets = next(iter(data_loader))
-
-    for i in range(len(images)):
-        # convert the image to
-        fig, ax = plt.subplots()
-        image = torchvision.transforms.ToPILImage()(images[i])
-        ax.imshow(image)
-        for b, (xmin, ymin, xmax, ymax) in enumerate(targets[i]['boxes']):
-            w, h = xmax - xmin, ymax - ymin
-            x, y = xmax - (w / 2), ymax - (h / 2)
-            t_range = class_mapping[targets[i]['labels'][b].item()]  # range of theta values [min_t, max_t]
-            t = (t_range[0] + t_range[1]) / 2
-            w_cos, w_sin, h_sin, h_cos = (w / 2) * np.cos(t), (w / 2) * np.sin(t), (h / 2) * np.sin(t), (
-                    h / 2) * np.cos(t)
-            bl_x, bl_y, tl_x, tl_y = x - w_cos + h_sin, y - w_sin - h_cos, x - w_cos - h_sin, y - w_sin + h_cos
-            br_x, br_y, tr_x, tr_y = x + w_cos + h_sin, y + w_sin - h_cos, x + w_cos - h_sin, y + w_sin + h_cos
-            plt.plot([bl_x, tl_x], [bl_y, tl_y], c='black')
-            plt.plot([br_x, tr_x], [br_y, tr_y], c='black')
-            rect = patches.Rectangle((x - (w / 2), y - (h / 2)), w, h, linewidth=1, edgecolor='r', facecolor='none',
-                                     transform=Affine2D().rotate_around(*(x, y), t) + ax.transData)
-            ax.add_patch(rect)
-
-        plt.show()
 
 
 def collate_fn(batch):
@@ -267,7 +228,7 @@ class RandomHorizontalFlip(object):
       :param class_mapping: (dict) a dictionary mapping classes to theta/rotation values (see Dataset objects).
       :param p: (float) the probability with which the image is flipped
     """
-    def __init__(self, class_mapping, p=0.5):
+    def __init__(self, class_mapping, p=0.25):
         self.class_mapping = class_mapping
         self.p = p
 
@@ -293,7 +254,7 @@ class RandomVerticalFlip(object):
       :param class_mapping: (dict) a dictionary mapping classes to theta/rotation values (see Dataset objects).
       :param p: (float) the probability with which the image is flipped
     """
-    def __init__(self, class_mapping, p=0.5):
+    def __init__(self, class_mapping, p=0.25):
         self.class_mapping = class_mapping
         self.p = p
 
