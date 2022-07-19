@@ -5,12 +5,12 @@ import cv2
 import matplotlib.patches as patches
 import matplotlib.pyplot as plt
 import numpy as np
-import torch
 import torchvision
 from PIL import Image
 from matplotlib.transforms import Affine2D
 from torch.utils.data import Dataset
 from tqdm import tqdm
+import utils.transforms as T
 from config import *
 
 
@@ -282,9 +282,9 @@ class CornellDataset(Dataset):
 
 if __name__ == '__main__':
     dataset = CornellDataset(CORNELL_PATH, img_format=IMG_FORMAT)
-    dataset.visualise_sample()
-    # TO ADD - add transforms
-    # TO ADD - visualise sample with pre-processing
+    dataset.visualise_sample(91)
+    dataset.set_transforms(T.get_transforms("cornell", dataset.get_class_mapping()))
+    dataset.visualise_sample(91, preprocessed=True)
 
     # OPTIONAL - generate depth data (uncomment and run if needed)
     # dataset.generate_depth_data()

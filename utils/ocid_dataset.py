@@ -3,11 +3,11 @@ import random
 import matplotlib.patches as patches
 import matplotlib.pyplot as plt
 import numpy as np
-import torch
 import torchvision
 from PIL import Image
 from matplotlib.transforms import Affine2D
 from torch.utils.data import Dataset
+import utils.transforms as T
 from config import *
 
 class OCIDDataset(Dataset):
@@ -218,6 +218,6 @@ class OCIDDataset(Dataset):
 if __name__ == '__main__':
     dataset = OCIDDataset(OCID_PATH, img_format=IMG_FORMAT)
     dataset.visualise_sample(1143)
-    # TO ADD - add transforms
-    # TO ADD - visualise sample with pre-processing
+    dataset.set_transforms(T.get_transforms("ocid", dataset.get_class_mapping()))
+    dataset.visualise_sample(1143, preprocessed=True)
 

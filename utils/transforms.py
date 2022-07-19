@@ -1,10 +1,12 @@
 import torchvision
-import torch
+from torch.utils.data import DataLoader
 import numpy as np
 import matplotlib.pyplot as plt
 import matplotlib.patches as patches
 from matplotlib.transforms import Affine2D
 from PIL.Image import FLIP_LEFT_RIGHT, FLIP_TOP_BOTTOM, AFFINE
+from utils.cornell_dataset import CornellDataset
+from utils.ocid_dataset import OCIDDataset
 import random
 import cv2
 from config import *
@@ -19,6 +21,63 @@ for augmenting the grasping datasets for the baseline network.
 # --------------------------- UTILITY FUNCTIONS --------------------------- #
 #############################################################################
 
+
+def get_data_loaders(dataset_choice):
+    """ This function returns data loaders for a particular dataset for training or evaluating. """
+    # get the chosen dataset object
+    if dataset_choice == "cornell":
+        dataset = CornellDataset(CORNELL_PATH, img_format=IMG_FORMAT)
+    elif dataset_choice == "ocid":
+        dataset = OCIDDataset(OCID_PATH, img_format=IMG_FORMAT)
+    # get class mappings and transformations
+    class_mappings = dataset.get_class_mapping()
+    dataset.set_transforms(transforms=get_transforms(dataset_choice, class_mappings))
+    # split dataset into training and testing
+    train_dataset, test_dataset, val_dataset = split_dataset(dataset)
+    # generate dataloaders
+    train_loader = DataLoader(
+        train_dataset, batch_size=TRAIN_BS, shuffle=True, num_workers=NUM_WORKERS, collate_fn=collate_fn
+    )
+    val_loader = DataLoader(
+        val_dataset, batch_size=VAL_BS, shuffle=False, num_workers=NUM_WORKERS, collate_fn=collate_fn
+    )
+    test_loader = DataLoader(
+        test_dataset, batch_size=TEST_BS, shuffle=False, num_workers=NUM_WORKERS, collate_fn=collate_fn
+    )
+    print(f'[INFO] {dataset_choice.upper()} train dataset has {len(train_dataset)} samples.')
+    print(f'[INFO] {dataset_choice.upper()} validation dataset has {len(val_dataset)} samples.')
+    print(f'[INFO] {dataset_choice.upper()} test dataset has {len(test_dataset)} samples.')
+    return train_loader, test_loader, val_loader
+
+
+def get_transforms(dataset_choice, class_mappings, rs=False, rr=False, rhp=False, rvp=False):
+    """ Generate a set of transformations to use during data loading for training or evaluating.
+      :param dataset_choice: (str) whether to use the crop transform for the Cornell or OCID dataset.
+      :param class_mappings: (dict) a mapping between rotation classes and theta values to re-calculate rotation class.
+      :param rs: (bool) whether to add the Random Shift transform.
+      :param rr: (bool) whether to add the Random Rotate transform.
+      :param rhp: (bool) whether to add the Random Horizontal Flip transform.
+      :param rvp: (bool) whether to add the Random Vertical Flip transform.
+      :return: (torchvision.transforms.Compose) a set of transformations to apply to image and grasp poses when loading
+      a sample from the dataset.
+    """
+    transforms = []
+    if rs:
+        transforms.append(RandomShift())
+    if rr:
+        transforms.append(RandomRotate(class_mappings))
+    if dataset_choice == "cornell":
+        transforms.append(CustomCrop(100, 160, 315))
+    if dataset_choice == "ocid":
+        transforms.append(CustomCrop(10, 10, (590, 460)))
+    if rhp:
+        transforms.append(RandomHorizontalFlip(class_mappings))
+    if rvp:
+        transforms.append(RandomVerticalFlip(class_mappings))
+    transforms.append(ToTensor())
+    return torchvision.transforms.Compose(transforms)
+
+
 def split_dataset(dataset):
     """ Split a PyTorch Dataset object into training, testing and validation sets. """
     test_size = round(TEST_SPLIT * len(dataset))
@@ -28,6 +87,7 @@ def split_dataset(dataset):
     train_dataset, test_dataset, val_dataset = torch.utils.data.random_split(dataset, [train_size, test_size, val_size],
                                                                              generator=torch.Generator().manual_seed(SEED_SPLIT))
     return train_dataset, test_dataset, val_dataset
+
 
 def re_assign_class(theta, class_mapping):
     """ Assigns a given theta value (in radians) to a rotation class based on a given class mapping dict. """
