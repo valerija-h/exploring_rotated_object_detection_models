@@ -3,3 +3,4 @@ DOTA_dataset/**
 libraries/**
 models/**
 .idea/**
+**/__pycache__/
