@@ -18,7 +18,7 @@ def train_model(cfg):
     train_detector(model, datasets, cfg, distributed=False, validate=True)  # train model
 
 if __name__ == '__main__':
-    model_choice = 's2anet'  # 'orcnn' 'r3det' or 's2anet'
+    model_choice = 'redet'  # 'orcnn', 'redet', 's2anet' or 'r3det'
     dataset_choice = 'cornell'
 
     # train model
