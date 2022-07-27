@@ -34,7 +34,7 @@ def get_data_loaders(dataset):
     return train_loader, test_loader, val_loader
 
 
-def get_transforms(dataset_choice, class_mappings, rs=False, rr=False, rhp=False, rvp=False):
+def get_transforms(dataset_choice, class_mappings, rs=False, rr=False, rhp=False, rvp=False, tt=True):
     """ Generate a set of transformations to use during data loading for training or evaluating.
       :param dataset_choice: (str) whether to use the crop transform for the Cornell or OCID dataset.
       :param class_mappings: (dict) a mapping between rotation classes and theta values to re-calculate rotation class.
@@ -58,7 +58,8 @@ def get_transforms(dataset_choice, class_mappings, rs=False, rr=False, rhp=False
         transforms.append(RandomHorizontalFlip(class_mappings))
     if rvp:
         transforms.append(RandomVerticalFlip(class_mappings))
-    transforms.append(ToTensor())
+    if tt:
+        transforms.append(ToTensor())
     return torchvision.transforms.Compose(transforms)
 
 

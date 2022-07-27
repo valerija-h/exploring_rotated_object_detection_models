@@ -64,7 +64,7 @@ class OCIDDataset(Dataset):
         target = {
             "boxes": boxes,
             "labels": labels,
-            "images_id": image_id,
+            "image_id": image_id,
             "area": area,
             "iscrowd": iscrowd
         }
