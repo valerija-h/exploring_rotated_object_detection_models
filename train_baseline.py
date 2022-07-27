@@ -41,13 +41,12 @@ def train_network(dataset, model_name):
     print(f"[INFO] Training Finished. Saving the model.")
     torch.save(model.state_dict(), f"{model_name}")
 
-
 def create_model(class_mappings, freeze_layers=False):
     """ Returns a FasterRCNN model with pre-trained weights. """
     num_classes = len(class_mappings) + 1  # rotation classes + invalid proposal
 
     # load a model pre-trained on COCO with custom anchors
-    anchor_sizes = ((16,), (32,), (64,), (128,), (256,),)
+    anchor_sizes = ((32,), (64,), (128,), (256,), (512,),)
     aspect_ratios = ((0.25, 0.5, 1.0),) * len(anchor_sizes)
     anchor_generator = torchvision.models.detection.rpn.AnchorGenerator(anchor_sizes, aspect_ratios)
     backbone = torchvision.models.detection.backbone_utils.resnet_fpn_backbone('resnet101', pretrained=True)
