@@ -1,7 +1,7 @@
-dataset/**
+#dataset/**
 DOTA_dataset/**
-libraries/**
-models/**
+#libraries/**
+#models/**
 .idea/**
 **/__pycache__/
 __pycache__/
